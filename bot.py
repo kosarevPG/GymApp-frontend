@@ -383,15 +383,27 @@ async def log_all_updates(handler, event, data):
     logger.info(f"ПОЛУЧЕНО ОБНОВЛЕНИЕ: {type(event)}")
     logger.info(f"Update ID: {event.update_id if hasattr(event, 'update_id') else 'N/A'}")
     
-    if hasattr(event, 'message'):
+    # Проверяем все возможные типы обновлений
+    msg = None
+    if hasattr(event, 'message') and event.message:
         msg = event.message
+    elif hasattr(event, 'callback_query') and event.callback_query:
+        if hasattr(event.callback_query, 'message') and event.callback_query.message:
+            msg = event.callback_query.message
+    
+    if msg:
         logger.info(f"Message type: {type(msg)}")
         logger.info(f"From user: {msg.from_user.id if msg.from_user else 'N/A'}")
         logger.info(f"Has web_app_data: {hasattr(msg, 'web_app_data') and msg.web_app_data is not None}")
         if hasattr(msg, 'web_app_data') and msg.web_app_data:
-            logger.info(f"WEB_APP_DATA: {msg.web_app_data.data}")
-        if hasattr(msg, 'text'):
+            logger.info(f"🎯 WEB_APP_DATA НАЙДЕН! Данные: {msg.web_app_data.data}")
+        if hasattr(msg, 'text') and msg.text:
             logger.info(f"Text: {msg.text}")
+    else:
+        logger.info("Message: None (это не сообщение, возможно callback_query или другой тип обновления)")
+        # Проверяем callback_query
+        if hasattr(event, 'callback_query') and event.callback_query:
+            logger.info(f"Callback query: {event.callback_query.data if hasattr(event.callback_query, 'data') else 'N/A'}")
     
     logger.info("=" * 60)
     return await handler(event, data)

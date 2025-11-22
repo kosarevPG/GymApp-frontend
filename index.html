@@ -523,8 +523,17 @@
                 console.log('Sending data string:', dataString);
                 console.log('Data length:', dataString.length);
                 
+                // Показываем alert для отладки
+                alert('Отправка данных: ' + dataString.substring(0, 100) + '...');
+                
                 try {
                     // Проверяем, что мы в Telegram
+                    console.log('tg объект:', tg);
+                    console.log('tg.initData:', tg.initData);
+                    console.log('tg.initDataUnsafe:', tg.initDataUnsafe);
+                    console.log('tg.version:', tg.version);
+                    console.log('tg.platform:', tg.platform);
+                    
                     if (!tg.isExpanded) {
                         console.warn('WebApp не развернут, пытаемся развернуть...');
                         tg.expand();
@@ -533,13 +542,24 @@
                     console.log('Попытка отправить данные через tg.sendData()...');
                     console.log('tg.sendData доступен:', typeof tg.sendData === 'function');
                     console.log('Данные для отправки:', dataString);
+                    console.log('Длина данных:', dataString.length);
+                    
+                    // Проверяем все методы tg
+                    console.log('Все методы tg:', Object.keys(tg).filter(key => typeof tg[key] === 'function'));
                     
                     // Отправляем данные в бот
-                    tg.sendData(dataString);
-                    console.log('✅ tg.sendData() вызван успешно');
+                    if (typeof tg.sendData === 'function') {
+                        tg.sendData(dataString);
+                        console.log('✅ tg.sendData() вызван успешно');
+                        alert('Данные отправлены! Проверьте логи бота.');
+                    } else {
+                        console.error('❌ tg.sendData не является функцией!');
+                        alert('Ошибка: tg.sendData не доступен!');
+                        return;
+                    }
                     
                     // Ждем немного, чтобы убедиться, что данные отправились
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    await new Promise(resolve => setTimeout(resolve, 2000));
                     console.log('✅ Задержка завершена, закрываем WebApp...');
                     
                     // Закрываем WebApp

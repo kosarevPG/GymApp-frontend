@@ -492,7 +492,7 @@
         <div id="screen-workout" class="screen">
             <div class="workout-container">
                 <div class="timer-card">
-                    <div class="timer-display" id="timerDisplay">00:00</div>
+                    <div class="timer-display" id="timerDisplay">00:00.00</div>
                     <div class="timer-controls">
                         <button class="timer-btn start" id="timerStartBtn" onclick="toggleTimer()">Старт</button>
                         <button class="timer-btn reset" onclick="resetTimer()">Сброс</button>
@@ -537,19 +537,22 @@
         
         // Таймер
         let timerInterval = null;
-        let timerSeconds = 0;
+        let timerMilliseconds = 0;
         let isTimerRunning = false;
+        let timerStartTime = 0;
         
-        function formatTime(totalSeconds) {
+        function formatTime(totalMilliseconds) {
+            const totalSeconds = Math.floor(totalMilliseconds / 1000);
             const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
             const s = (totalSeconds % 60).toString().padStart(2, '0');
-            return `${m}:${s}`;
+            const ms = Math.floor((totalMilliseconds % 1000) / 10).toString().padStart(2, '0');
+            return `${m}:${s}.${ms}`;
         }
         
         function updateTimerDisplay() {
             const display = document.getElementById('timerDisplay');
             if (display) {
-                display.textContent = formatTime(timerSeconds);
+                display.textContent = formatTime(timerMilliseconds);
             }
         }
         
@@ -569,10 +572,12 @@
                 btn.textContent = "Стоп";
                 btn.classList.add('active');
                 
+                timerStartTime = Date.now() - timerMilliseconds;
+                
                 timerInterval = setInterval(() => {
-                    timerSeconds++;
+                    timerMilliseconds = Date.now() - timerStartTime;
                     updateTimerDisplay();
-                }, 1000);
+                }, 10); // Обновляем каждые 10ms для плавности
             }
         }
         
@@ -580,7 +585,8 @@
             // Останавливаем
             clearInterval(timerInterval);
             isTimerRunning = false;
-            timerSeconds = 0;
+            timerMilliseconds = 0;
+            timerStartTime = 0;
             
             // Обновляем UI
             updateTimerDisplay();

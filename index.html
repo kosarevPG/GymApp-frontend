@@ -974,7 +974,8 @@
                 exercise: null,
                 sets: [], // Старая структура (для обратной совместимости)
                 activeExercises: [], // Новая структура для суперсетов: [{name: "...", sets: [...]}]
-                sessionId: null // UUID сессии для связывания упражнений в суперсет
+                sessionId: null, // UUID сессии для связывания упражнений в суперсет
+                orderCounter: 0 // Счетчик порядка выполнения подходов
             },
 
             init() {
@@ -997,6 +998,18 @@
                 document.getElementById('modalAddExercise').onclick = (e) => {
                     if (e.target.id === 'modalAddExercise') UI.toggleModal('modalAddExercise', false);
                 };
+
+                // Восстанавливаем счетчик, если сессия та же
+                const savedSession = localStorage.getItem('gym_session_id');
+                const savedOrder = localStorage.getItem('gym_order_counter');
+                
+                // Если мы продолжаем ту же тренировку (проверяем по времени, например 12 часов)
+                // Но пока для простоты: если есть сохраненная сессия, берем её счетчик
+                if (savedSession && savedOrder) {
+                    this.state.orderCounter = parseInt(savedOrder) || 0;
+                    // Можно восстановить и sessionId, если нужно
+                    // this.state.sessionId = savedSession; 
+                }
 
                 this.loadGroups();
             },
@@ -1096,6 +1109,11 @@
                 // Генерируем новый sessionId для новой тренировки
                 this.state.sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
                 
+                // Сбрасываем счетчик для новой тренировки
+                this.state.orderCounter = 0;
+                localStorage.setItem('gym_session_id', this.state.sessionId);
+                localStorage.setItem('gym_order_counter', '0');
+                
                 this.state.exercise = exerciseObj;
                 UI.showScreen('workout');
                 UI.updateNav(exerciseName, true, true);
@@ -1159,11 +1177,16 @@
                 set.completed = true;
                 UI.renderSets(this.state.sets);
 
+                // Увеличиваем счетчик
+                this.state.orderCounter++;
+                localStorage.setItem('gym_order_counter', this.state.orderCounter.toString());
+
                 const res = await API.saveSet({
                     exercise: this.state.exercise.name,
                     weight: set.weight,
                     reps: set.reps,
-                    rest: set.rest
+                    rest: set.rest,
+                    order: this.state.orderCounter // Отправляем порядковый номер
                 });
 
                 if (res.status !== 'success') {
@@ -1204,11 +1227,16 @@
                 set.completed = true;
                 UI.renderWorkoutScreen();
 
+                // Увеличиваем счетчик
+                this.state.orderCounter++;
+                localStorage.setItem('gym_order_counter', this.state.orderCounter.toString());
+
                 const res = await API.saveSet({
                     exercise: exBlock.name,
                     weight: set.weight,
                     reps: set.reps,
-                    rest: set.rest
+                    rest: set.rest,
+                    order: this.state.orderCounter // Отправляем порядковый номер
                 });
 
                 if (res.status !== 'success') {

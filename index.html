@@ -96,6 +96,60 @@
             margin-top: 20px;
         }
         
+        .groups-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .group-pair-item {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .group-pair-item:active {
+            transform: scale(0.98);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            background: #f5f5f5;
+        }
+        
+        .group-pair-item h3 {
+            font-size: 15px;
+            font-weight: 500;
+            color: #333;
+            margin: 0;
+        }
+        
+        .groups-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .btn-all {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-all:active {
+            background: #5568d3;
+            transform: scale(0.98);
+        }
+        
         .list-item {
             background: white;
             padding: 12px 16px;
@@ -477,12 +531,53 @@
         
         function displayGroups(groups) {
             const list = document.getElementById('groups-list');
-            list.innerHTML = '<div class="list-grid">' +
-                groups.map(group => `
-                    <div class="list-item" onclick="selectGroup('${group.replace(/'/g, "\\'")}')">
-                        <h3>${group}</h3>
-                    </div>
-                `).join('') + '</div>';
+            
+            // Определяем пары групп
+            const pairs = [
+                ['Спина', 'Ноги'],
+                ['Грудь', 'Плечи'],
+                ['Бицепс', 'Трицепс'],
+                ['Кардио', 'Пресс']
+            ];
+            
+            // Создаем HTML для пар
+            let pairsHTML = pairs.map(pair => {
+                const [group1, group2] = pair;
+                const hasGroup1 = groups.includes(group1);
+                const hasGroup2 = groups.includes(group2);
+                
+                let pairHTML = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">';
+                
+                if (hasGroup1) {
+                    pairHTML += `<div class="group-pair-item" onclick="selectGroup('${group1.replace(/'/g, "\\'")}')">
+                        <h3>${group1}</h3>
+                    </div>`;
+                } else {
+                    pairHTML += '<div class="group-pair-item" style="opacity: 0.5; cursor: default;"><h3>—</h3></div>';
+                }
+                
+                if (hasGroup2) {
+                    pairHTML += `<div class="group-pair-item" onclick="selectGroup('${group2.replace(/'/g, "\\'")}')">
+                        <h3>${group2}</h3>
+                    </div>`;
+                } else {
+                    pairHTML += '<div class="group-pair-item" style="opacity: 0.5; cursor: default;"><h3>—</h3></div>';
+                }
+                
+                pairHTML += '</div>';
+                return pairHTML;
+            }).join('');
+            
+            // Добавляем кнопку "Все" справа сверху
+            list.innerHTML = `
+                <div class="groups-header">
+                    <div></div>
+                    <button class="btn-all" onclick="loadAllExercises()">Все</button>
+                </div>
+                <div class="groups-grid">
+                    ${pairsHTML}
+                </div>
+            `;
         }
         
         // Выбор группы
@@ -508,6 +603,55 @@
                 }
             } catch (error) {
                 console.error('Ошибка загрузки упражнений:', error);
+                list.innerHTML = '<div class="error">Ошибка подключения к серверу</div>';
+            }
+        }
+        
+        // Загрузка всех упражнений в алфавитном порядке
+        async function loadAllExercises() {
+            currentGroup = 'Все';
+            showScreen('exercises');
+            const list = document.getElementById('exercises-list');
+            list.innerHTML = '<div class="loading">Загрузка всех упражнений...</div>';
+            
+            try {
+                // Получаем все группы
+                const groupsResponse = await fetch(`${BACKEND_URL}/api/groups`);
+                const groupsResult = await groupsResponse.json();
+                
+                if (!groupsResult.groups || groupsResult.groups.length === 0) {
+                    list.innerHTML = '<div class="error">Нет доступных групп</div>';
+                    return;
+                }
+                
+                // Загружаем упражнения из всех групп
+                const allExercises = [];
+                for (const group of groupsResult.groups) {
+                    try {
+                        const response = await fetch(`${BACKEND_URL}/api/exercises?group=${encodeURIComponent(group)}`);
+                        const result = await response.json();
+                        if (result.exercises && result.exercises.length > 0) {
+                            allExercises.push(...result.exercises);
+                        }
+                    } catch (error) {
+                        console.error(`Ошибка загрузки упражнений для группы ${group}:`, error);
+                    }
+                }
+                
+                // Удаляем дубликаты и сортируем по алфавиту
+                const uniqueExercises = [...new Set(allExercises)];
+                uniqueExercises.sort((a, b) => {
+                    // Сортируем по алфавиту (кириллица)
+                    return a.localeCompare(b, 'ru');
+                });
+                
+                if (uniqueExercises.length > 0) {
+                    displayExercises(uniqueExercises);
+                } else {
+                    list.innerHTML = '<div class="error">Нет доступных упражнений</div>';
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки всех упражнений:', error);
                 list.innerHTML = '<div class="error">Ошибка подключения к серверу</div>';
             }
         }

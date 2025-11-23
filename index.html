@@ -1006,7 +1006,7 @@
                     this.state.exercise = null;
                     Timer.reset();
                     UI.showScreen('exercises');
-                    UI.updateNav(this.state.group);
+                    UI.updateNav(this.state.group, true, false); // Показываем кнопку "Назад" на экране упражнений
                 } else if (this.state.group) {
                     this.state.group = null;
                     UI.showScreen('groups');

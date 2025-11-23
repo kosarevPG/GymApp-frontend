@@ -96,11 +96,21 @@
             margin-top: 20px;
         }
         
+        .groups-container {
+            position: relative;
+        }
+        
         .groups-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .group-pair-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
-            margin-top: 20px;
         }
         
         .group-pair-item {
@@ -127,10 +137,10 @@
         }
         
         .groups-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
+            position: absolute;
+            top: 0;
+            right: 0;
+            z-index: 10;
         }
         
         .btn-all {
@@ -143,6 +153,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
         .btn-all:active {
@@ -546,7 +557,7 @@
                 const hasGroup1 = groups.includes(group1);
                 const hasGroup2 = groups.includes(group2);
                 
-                let pairHTML = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">';
+                let pairHTML = '<div class="group-pair-row">';
                 
                 if (hasGroup1) {
                     pairHTML += `<div class="group-pair-item" onclick="selectGroup('${group1.replace(/'/g, "\\'")}')">
@@ -570,12 +581,13 @@
             
             // Добавляем кнопку "Все" справа сверху
             list.innerHTML = `
-                <div class="groups-header">
-                    <div></div>
-                    <button class="btn-all" onclick="loadAllExercises()">Все</button>
-                </div>
-                <div class="groups-grid">
-                    ${pairsHTML}
+                <div class="groups-container">
+                    <div class="groups-header">
+                        <button class="btn-all" onclick="loadAllExercises()">Все</button>
+                    </div>
+                    <div class="groups-grid">
+                        ${pairsHTML}
+                    </div>
                 </div>
             `;
         }

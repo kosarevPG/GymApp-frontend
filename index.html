@@ -1022,20 +1022,27 @@
                 
                 if (result.sets && result.sets.length > 0) {
                     // Автозаполнение из последней тренировки - создаем все подходы
-                    sets = result.sets.map((set, idx) => ({
-                        weight: set.weight || 0,
-                        reps: set.reps || 0,
-                        rest: set.rest || 0,
-                        completed: false,
-                        id: Date.now() + idx + Math.random()
-                    }));
+                    sets = result.sets.map((set, idx) => {
+                        // Обрабатываем отдых: если больше 100, вероятно это секунды - конвертируем в минуты
+                        let rest = set.rest || 0;
+                        if (rest > 100) {
+                            rest = rest / 60.0;
+                        }
+                        return {
+                            weight: set.weight || 0,
+                            reps: set.reps || 0,
+                            rest: rest, // отдых в минутах
+                            completed: false,
+                            id: Date.now() + idx + Math.random()
+                        };
+                    });
                     console.log(`Создано ${sets.length} подходов из последней тренировки`);
                 } else {
                     // Создаем одну пустую строку
                     sets = [{
                         weight: 0,
                         reps: 0,
-                        rest: 0,
+                        rest: 0, // отдых в минутах
                         completed: false,
                         id: Date.now()
                     }];
@@ -1112,16 +1119,17 @@
                                    placeholder="0">
                         </div>
                         <div class="set-input-wrapper">
-                            <div class="input-label">Отдых</div>
+                            <div class="input-label">Отдых (мин)</div>
                             <input type="text" 
-                                   inputmode="numeric"
+                                   inputmode="decimal"
                                    class="set-input" 
                                    value="${set.rest || 0}" 
-                                   oninput="updateSet(${index}, 'rest', this.value)"
-                                   onchange="updateSet(${index}, 'rest', this.value)"
+                                   oninput="const val = validateFloatInput(this); updateSet(${index}, 'rest', val)"
+                                   onchange="const val = validateFloatInput(this); updateSet(${index}, 'rest', val)"
                                    onfocus="this.select()"
                                    ${set.completed ? 'disabled' : ''} 
-                                   placeholder="0">
+                                   placeholder="0"
+                                   step="0.5">
                         </div>
                     </div>
                     <button class="set-remove ${set.completed ? 'hidden' : ''}" 
@@ -1136,9 +1144,17 @@
                 // Заменяем запятую на точку для корректного парсинга
                 const normalizedValue = String(value).replace(',', '.');
                 
-                if (field === 'reps' || field === 'rest') {
-                    // Для повторов и отдыха - целые числа
+                if (field === 'reps') {
+                    // Для повторов - целые числа
                     const numValue = parseInt(normalizedValue);
+                    if (!isNaN(numValue)) {
+                        sets[index][field] = numValue;
+                    } else if (normalizedValue === '' || normalizedValue === null) {
+                        sets[index][field] = 0;
+                    }
+                } else if (field === 'rest') {
+                    // Для отдыха - дробные числа (минуты)
+                    const numValue = parseFloat(normalizedValue);
                     if (!isNaN(numValue)) {
                         sets[index][field] = numValue;
                     } else if (normalizedValue === '' || normalizedValue === null) {
@@ -1306,12 +1322,29 @@
                     let reps = set.reps || set.Reps || 0;
                     let rest = set.rest || set.Rest || 0;
                     
+                    // Форматируем отдых (может быть в секундах или минутах)
+                    let restDisplay = '';
+                    if (rest) {
+                        // Если значение больше 100, вероятно это секунды - конвертируем в минуты
+                        let restMinutes = rest;
+                        if (rest > 100) {
+                            restMinutes = rest / 60.0;
+                        }
+                        // Форматируем: если целое число, показываем без десятичных, иначе с одним знаком
+                        // ВАЖНО: всегда используем "мин", никогда "с" или "сек"
+                        if (restMinutes % 1 === 0) {
+                            restDisplay = `${restMinutes} мин`;
+                        } else {
+                            restDisplay = `${restMinutes.toFixed(1)} мин`;
+                        }
+                    }
+                    
                     setsHtml += `
                         <div class="history-set-row">
                             <span>
                                 <b>${weight}</b> кг × <b>${reps}</b>
                             </span>
-                            ${rest ? `<span class="history-rest">отдых ${rest}с</span>` : ''}
+                            ${restDisplay ? `<span class="history-rest">отдых ${restDisplay}</span>` : ''}
                         </div>
                     `;
                 });

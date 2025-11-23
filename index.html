@@ -686,6 +686,17 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal: Add Exercise to Superset -->
+    <div id="modalAddExercise" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Добавить упражнение</div>
+                <button class="modal-close" onclick="UI.toggleModal('modalAddExercise', false)">×</button>
+            </div>
+            <div id="add-exercise-list" class="list-grid"></div>
+        </div>
+    </div>
     
     <script>
         // ==================== CONFIG ====================
@@ -756,7 +767,11 @@
             getGroups: () => API.request('groups'),
             getExercises: (group) => API.request('exercises', { group }),
             getHistory: (exercise, mode = 'full', limit = 20) => API.request('history', { exercise, mode, limit }),
-            saveSet: (data) => API.request('save_set', {}, 'POST', { ...data, user_id: CONFIG.USER_ID })
+            saveSet: (data) => API.request('save_set', {}, 'POST', { 
+                ...data, 
+                user_id: CONFIG.USER_ID,
+                set_group_id: App.state.sessionId // Передаем sessionId для суперсетов
+            })
         };
 
         // ==================== TIMER MODULE ====================
@@ -832,7 +847,9 @@
                 screen: 'groups',
                 group: null,
                 exercise: null,
-                sets: []
+                sets: [], // Старая структура (для обратной совместимости)
+                activeExercises: [], // Новая структура для суперсетов: [{name: "...", sets: [...]}]
+                sessionId: null // UUID сессии для связывания упражнений в суперсет
             },
 
             init() {
@@ -851,6 +868,9 @@
                 };
                 document.getElementById('infoModal').onclick = (e) => {
                     if (e.target.id === 'infoModal') UI.toggleModal('infoModal', false);
+                };
+                document.getElementById('modalAddExercise').onclick = (e) => {
+                    if (e.target.id === 'modalAddExercise') UI.toggleModal('modalAddExercise', false);
                 };
 
                 this.loadGroups();
@@ -946,13 +966,18 @@
             async selectExercise(ex) {
                 Haptic.selection(); // 📳 Виброотклик при выборе упражнения
                 const exerciseName = typeof ex === 'string' ? ex : ex.name;
-                this.state.exercise = typeof ex === 'object' ? ex : {name: exerciseName, desc: '', image: ''};
+                const exerciseObj = typeof ex === 'object' ? ex : {name: exerciseName, desc: '', image: ''};
+                
+                // Генерируем новый sessionId для новой тренировки
+                this.state.sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                
+                this.state.exercise = exerciseObj;
                 UI.showScreen('workout');
                 UI.updateNav(exerciseName, true, true);
                 
                 // Загрузка последнего результата для автозаполнения
                 const res = await API.getHistory(exerciseName, 'last');
-                this.state.sets = (res.sets && res.sets.length) 
+                const initialSets = (res.sets && res.sets.length) 
                     ? res.sets.map((s, idx) => {
                         let rest = s.rest || 0;
                         if (rest > 100) rest = rest / 60.0; // Конвертируем секунды в минуты
@@ -960,7 +985,17 @@
                     })
                     : [{weight: 0, reps: 0, rest: 0, completed: false, id: Date.now()}];
                 
-                UI.renderSets(this.state.sets);
+                // Инициализируем activeExercises с первым упражнением
+                this.state.activeExercises = [{
+                    name: exerciseName,
+                    exerciseObj: exerciseObj,
+                    sets: initialSets
+                }];
+                
+                // Для обратной совместимости
+                this.state.sets = initialSets;
+                
+                UI.renderWorkoutScreen();
             },
 
             addSetRow() {
@@ -1024,13 +1059,181 @@
                 }
             },
 
+            // ==================== SUPERSET FUNCTIONS ====================
+            
+            async toggleSetInSuperset(exIndex, setIndex) {
+                const exBlock = this.state.activeExercises[exIndex];
+                if (!exBlock || !exBlock.sets[setIndex]) return;
+                
+                const set = exBlock.sets[setIndex];
+                if (set.completed) return;
+                
+                if (!set.weight || !set.reps) {
+                    Haptic.notification('error');
+                    alert('Пожалуйста, заполните вес и повторы');
+                    const checkbox = document.querySelector(`[data-ex-index="${exIndex}"][data-set-id="${set.id}"] .set-checkbox`);
+                    if (checkbox) checkbox.checked = false;
+                    return;
+                }
+
+                set.completed = true;
+                UI.renderWorkoutScreen();
+
+                const res = await API.saveSet({
+                    exercise: exBlock.name,
+                    weight: set.weight,
+                    reps: set.reps,
+                    rest: set.rest
+                });
+
+                if (res.status !== 'success') {
+                    Haptic.notification('error');
+                    alert("Ошибка сохранения!");
+                    set.completed = false;
+                    UI.renderWorkoutScreen();
+                } else {
+                    Haptic.impact('medium');
+                }
+            },
+
+            updateSetDataInSuperset(exIndex, setIndex, field, value) {
+                const exBlock = this.state.activeExercises[exIndex];
+                if (!exBlock || !exBlock.sets[setIndex]) return;
+                
+                const set = exBlock.sets[setIndex];
+                if (set && !set.completed) {
+                    const normalized = String(value).replace(',', '.');
+                    if (field === 'reps') {
+                        set[field] = parseInt(normalized) || 0;
+                    } else {
+                        set[field] = parseFloat(normalized) || 0;
+                    }
+                }
+            },
+
+            removeSetInSuperset(exIndex, setIndex) {
+                const exBlock = this.state.activeExercises[exIndex];
+                if (!exBlock || !exBlock.sets[setIndex]) return;
+                
+                const set = exBlock.sets[setIndex];
+                if (!set.completed) {
+                    exBlock.sets.splice(setIndex, 1);
+                    UI.renderWorkoutScreen();
+                }
+            },
+
+            addSetToExercise(exIndex) {
+                Haptic.impact('light');
+                const exBlock = this.state.activeExercises[exIndex];
+                if (!exBlock) return;
+                
+                const last = exBlock.sets[exBlock.sets.length - 1] || {weight: 0, reps: 0, rest: 0};
+                exBlock.sets.push({ ...last, completed: false, id: Date.now() + Math.random() });
+                UI.renderWorkoutScreen();
+            },
+
+            removeExerciseFromSuperset(exIndex) {
+                if (exIndex === 0) return; // Нельзя удалить первое упражнение
+                Haptic.impact('light');
+                this.state.activeExercises.splice(exIndex, 1);
+                UI.renderWorkoutScreen();
+            },
+
+            async showAddExerciseModal() {
+                Haptic.impact('light');
+                UI.toggleModal('modalAddExercise', true);
+                const list = document.getElementById('add-exercise-list');
+                list.innerHTML = '<div class="loading">Загрузка...</div>';
+                
+                // Загружаем все упражнения
+                try {
+                    const groups = await API.getGroups();
+                    if (!groups.groups) {
+                        list.innerHTML = '<div class="error">Ошибка загрузки</div>';
+                        return;
+                    }
+                    
+                    let allExercises = [];
+                    for (const group of groups.groups) {
+                        const res = await API.getExercises(group);
+                        if (res.exercises) {
+                            allExercises = allExercises.concat(res.exercises);
+                        }
+                    }
+                    
+                    // Фильтруем уже добавленные упражнения
+                    const addedNames = this.state.activeExercises.map(ex => ex.name);
+                    const available = allExercises.filter(ex => !addedNames.includes(ex.name));
+                    
+                    if (available.length === 0) {
+                        list.innerHTML = '<div class="error">Все упражнения уже добавлены</div>';
+                        return;
+                    }
+                    
+                    // Сортируем по алфавиту
+                    available.sort((a, b) => {
+                        const nameA = typeof a === 'string' ? a : a.name;
+                        const nameB = typeof b === 'string' ? b : b.name;
+                        return nameA.localeCompare(nameB);
+                    });
+                    
+                    list.innerHTML = available.map(ex => {
+                        const exerciseName = typeof ex === 'string' ? ex : ex.name;
+                        return `
+                            <div class="list-item" onclick="App.addExerciseToSuperset(${JSON.stringify(ex)})">
+                                <h3>${exerciseName}</h3>
+                            </div>
+                        `;
+                    }).join('');
+                } catch (e) {
+                    console.error('Ошибка загрузки упражнений:', e);
+                    list.innerHTML = '<div class="error">Ошибка подключения</div>';
+                }
+            },
+
+            async addExerciseToSuperset(ex) {
+                Haptic.selection();
+                const exerciseName = typeof ex === 'string' ? ex : ex.name;
+                const exerciseObj = typeof ex === 'object' ? ex : {name: exerciseName, desc: '', image: ''};
+                
+                // Загружаем последний результат для автозаполнения
+                const res = await API.getHistory(exerciseName, 'last');
+                const initialSets = (res.sets && res.sets.length) 
+                    ? res.sets.map((s, idx) => {
+                        let rest = s.rest || 0;
+                        if (rest > 100) rest = rest / 60.0;
+                        return {...s, rest, completed: false, id: Date.now() + idx + Math.random()};
+                    })
+                    : [{weight: 0, reps: 0, rest: 0, completed: false, id: Date.now()}];
+                
+                // Добавляем упражнение в суперсет
+                App.state.activeExercises.push({
+                    name: exerciseName,
+                    exerciseObj: exerciseObj,
+                    sets: initialSets
+                });
+                
+                UI.toggleModal('modalAddExercise', false);
+                UI.renderWorkoutScreen();
+            },
+
             async loadHistory() {
                 Haptic.impact('light'); // 📳 Легкая вибрация при открытии истории
                 UI.toggleModal('modalHistory', true);
                 const cont = document.getElementById('history-content');
                 cont.innerHTML = 'Загрузка...';
                 
-                const res = await API.getHistory(this.state.exercise.name);
+                // Берем имя первого упражнения для истории
+                const exerciseName = App.state.activeExercises.length > 0 
+                    ? App.state.activeExercises[0].name 
+                    : (App.state.exercise ? App.state.exercise.name : '');
+                
+                if (!exerciseName) {
+                    cont.innerHTML = "Выберите упражнение";
+                    return;
+                }
+                
+                const res = await API.getHistory(exerciseName);
                 if (res.history) UI.renderHistory(res.history);
                 else cont.innerHTML = "Пусто";
             }
@@ -1110,6 +1313,7 @@
             },
 
             renderSets(sets) {
+                // Старая функция для обратной совместимости
                 const container = document.getElementById('sets-container');
                 container.innerHTML = sets.map((set, index) => {
                     const setId = set.id || (Date.now() + index);
@@ -1151,6 +1355,79 @@
                 }).join('');
             },
 
+            renderWorkoutScreen() {
+                // Новая функция для отображения суперсетов
+                const container = document.getElementById('sets-container');
+                if (!App.state.activeExercises || App.state.activeExercises.length === 0) {
+                    container.innerHTML = '';
+                    return;
+                }
+                
+                container.innerHTML = App.state.activeExercises.map((exBlock, exIndex) => {
+                    const exerciseName = exBlock.name;
+                    const sets = exBlock.sets || [];
+                    
+                    const setsHtml = sets.map((set, setIndex) => {
+                        const setId = set.id || (Date.now() + exIndex * 1000 + setIndex);
+                        const safeId = JSON.stringify(setId);
+                        return `
+                            <div class="set-row ${set.completed ? 'completed' : ''}" data-ex-index="${exIndex}" data-set-id="${setId}">
+                                <input type="checkbox" class="set-checkbox" ${set.completed ? 'checked disabled' : ''} 
+                                       onchange="App.toggleSetInSuperset(${exIndex}, ${setIndex})">
+                                <div class="set-inputs-group">
+                                    <div class="set-input-wrapper">
+                                        <div class="input-label">Вес</div>
+                                        <input type="text" inputmode="decimal" class="set-input" 
+                                               value="${String(set.weight || 0).replace(',', '.')}" 
+                                               oninput="const val = UI.validateFloatInput(this); App.updateSetDataInSuperset(${exIndex}, ${setIndex}, 'weight', val)"
+                                               onfocus="this.select()"
+                                               ${set.completed ? 'disabled' : ''} placeholder="0">
+                                    </div>
+                                    <div class="set-input-wrapper">
+                                        <div class="input-label">Повторы</div>
+                                        <input type="text" inputmode="numeric" class="set-input" 
+                                               value="${set.reps || 0}" 
+                                               oninput="App.updateSetDataInSuperset(${exIndex}, ${setIndex}, 'reps', this.value)"
+                                               onfocus="this.select()"
+                                               ${set.completed ? 'disabled' : ''} placeholder="0">
+                                    </div>
+                                    <div class="set-input-wrapper">
+                                        <div class="input-label">Отдых (мин)</div>
+                                        <input type="text" inputmode="decimal" class="set-input" 
+                                               value="${set.rest || 0}" 
+                                               oninput="const val = UI.validateFloatInput(this); App.updateSetDataInSuperset(${exIndex}, ${setIndex}, 'rest', val)"
+                                               onfocus="this.select()"
+                                               ${set.completed ? 'disabled' : ''} placeholder="0" step="0.5">
+                                    </div>
+                                </div>
+                                <button class="set-remove ${set.completed ? 'hidden' : ''}" 
+                                        onclick="App.removeSetInSuperset(${exIndex}, ${setIndex})">×</button>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    return `
+                        <div class="exercise-block" style="margin-bottom: 20px; padding: 12px; background: #f8f9fa; border-radius: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <h3 style="margin: 0; font-size: 18px; font-weight: 600;">${exerciseName}</h3>
+                                ${exIndex > 0 ? `<button class="btn-nav" onclick="App.removeExerciseFromSuperset(${exIndex})" style="color: #dc3545;">×</button>` : ''}
+                            </div>
+                            ${setsHtml}
+                            <button class="btn-main" style="margin-top: 10px; padding: 10px;" onclick="App.addSetToExercise(${exIndex})">+ Подход</button>
+                        </div>
+                    `;
+                }).join('');
+                
+                // Кнопка добавления упражнения в суперсет
+                if (App.state.activeExercises.length > 0) {
+                    container.innerHTML += `
+                        <button class="btn-main" style="margin-top: 15px; background: #28a745;" onclick="App.showAddExerciseModal()">
+                            + Добавить упражнение в суперсет
+                        </button>
+                    `;
+                }
+            },
+
             renderHistory(historyData) {
                 const container = document.getElementById('history-content');
                 container.innerHTML = '';
@@ -1160,58 +1437,75 @@
                     return;
                 }
                 
-                // Группируем по дате
-                const grouped = {};
+                // 1. Группируем по ДАТЕ
+                const byDate = {};
                 historyData.forEach(item => {
                     let rawDate = item.date || item.Date || '';
                     let dateKey = String(rawDate).split(' ')[0].split(',')[0].trim();
                     if (!dateKey) return;
-                    if (!grouped[dateKey]) grouped[dateKey] = [];
-                    grouped[dateKey].push(item);
+                    
+                    if (!byDate[dateKey]) byDate[dateKey] = {};
+                    
+                    // 2. Внутри даты группируем по set_group_id (UUID)
+                    const groupId = item.set_group_id || 'unknown_' + Math.random();
+                    
+                    if (!byDate[dateKey][groupId]) byDate[dateKey][groupId] = [];
+                    byDate[dateKey][groupId].push(item);
                 });
                 
-                // Сортируем даты
-                const sortedDates = Object.keys(grouped).sort((a, b) => {
+                // 3. Сортируем даты (новые сверху)
+                const sortedDates = Object.keys(byDate).sort((a, b) => {
                     const dateA = a.replace(/\./g, '-');
                     const dateB = b.replace(/\./g, '-');
                     return dateB.localeCompare(dateA);
                 });
                 
-                // Отрисовываем
+                // 4. Отрисовываем
                 sortedDates.forEach(date => {
-                    const sets = grouped[date];
-                    const card = document.createElement('div');
-                    card.className = 'history-group-card';
+                    const groupsInDate = byDate[date];
                     
-                    let setsHtml = '';
-                    sets.forEach(set => {
-                        let weight = set.weight || set.Weight || 0;
-                        let reps = set.reps || set.Reps || 0;
-                        let rest = set.rest || set.Rest || 0;
-                        
-                        // Форматируем отдых
-                        let restDisplay = '';
-                        if (rest) {
-                            let restMinutes = rest;
-                            if (rest > 100) restMinutes = rest / 60.0;
-                            if (restMinutes % 1 === 0) {
-                                restDisplay = `${restMinutes} мин`;
-                            } else {
-                                restDisplay = `${restMinutes.toFixed(1)} мин`;
+                    // Формируем HTML для групп внутри одной даты
+                    const groupsHtml = Object.values(groupsInDate).map(groupItems => {
+                        // groupItems - это массив подходов в одном суперсете
+                        let setsHtml = '';
+                        groupItems.forEach(set => {
+                            let weight = set.weight || set.Weight || 0;
+                            let reps = set.reps || set.Reps || 0;
+                            let rest = set.rest || set.Rest || 0;
+                            
+                            // Форматируем отдых
+                            let restDisplay = '';
+                            if (rest) {
+                                let restMinutes = rest;
+                                if (rest > 100) restMinutes = rest / 60.0;
+                                if (restMinutes % 1 === 0) {
+                                    restDisplay = `${restMinutes} мин`;
+                                } else {
+                                    restDisplay = `${restMinutes.toFixed(1)} мин`;
+                                }
                             }
-                        }
+                            
+                            setsHtml += `
+                                <div class="history-set-row">
+                                    <span><b>${weight}</b> кг × <b>${reps}</b></span>
+                                    ${restDisplay ? `<span class="history-rest">отдых ${restDisplay}</span>` : ''}
+                                </div>
+                            `;
+                        });
                         
-                        setsHtml += `
-                            <div class="history-set-row">
-                                <span><b>${weight}</b> кг × <b>${reps}</b></span>
-                                ${restDisplay ? `<span class="history-rest">отдых ${restDisplay}</span>` : ''}
+                        return `
+                            <div class="history-group-card" style="margin-bottom: 10px; border-left: 4px solid var(--primary);">
+                                <div class="history-sets-list">${setsHtml}</div>
                             </div>
                         `;
-                    });
+                    }).join('');
                     
+                    const card = document.createElement('div');
                     card.innerHTML = `
-                        <div class="history-date-header">📅 ${date}</div>
-                        <div class="history-sets-list">${setsHtml}</div>
+                        <div style="margin-bottom: 20px;">
+                            <div class="history-date-header">📅 ${date}</div>
+                            ${groupsHtml}
+                        </div>
                     `;
                     container.appendChild(card);
                 });

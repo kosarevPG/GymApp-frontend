@@ -576,6 +576,19 @@
             }
         }
         
+        // Функция валидации ввода для веса (разрешаем только цифры, точку и запятую)
+        function validateFloatInput(input) {
+            // Заменяем запятую на точку
+            let value = input.value.replace(',', '.');
+            
+            // Обновляем значение в поле (визуально меняем запятую на точку)
+            if (input.value.includes(',')) {
+                input.value = value;
+            }
+            
+            return value;
+        }
+        
         // Отображение подходов
         function renderSets() {
             const container = document.getElementById('sets-container');
@@ -586,33 +599,39 @@
                     <div class="set-inputs-group">
                         <div class="set-input-wrapper">
                             <div class="input-label">Вес</div>
-                            <input type="number" class="set-input" value="${set.weight}" 
-                                   oninput="updateSet(${index}, 'weight', this.value)"
-                                   onchange="updateSet(${index}, 'weight', this.value)"
+                            <input type="text" 
+                                   inputmode="decimal"
+                                   class="set-input" 
+                                   value="${set.weight}" 
+                                   oninput="const val = validateFloatInput(this); updateSet(${index}, 'weight', val)"
+                                   onchange="const val = validateFloatInput(this); updateSet(${index}, 'weight', val)"
+                                   onfocus="this.select()"
                                    ${set.completed ? 'disabled' : ''} 
-                                   placeholder="0" 
-                                   step="0.5" 
-                                   min="0">
+                                   placeholder="0">
                         </div>
                         <div class="set-input-wrapper">
                             <div class="input-label">Повторы</div>
-                            <input type="number" class="set-input" value="${set.reps}" 
+                            <input type="text" 
+                                   inputmode="numeric"
+                                   class="set-input" 
+                                   value="${set.reps}" 
                                    oninput="updateSet(${index}, 'reps', this.value)"
                                    onchange="updateSet(${index}, 'reps', this.value)"
+                                   onfocus="this.select()"
                                    ${set.completed ? 'disabled' : ''} 
-                                   placeholder="0" 
-                                   step="1" 
-                                   min="0">
+                                   placeholder="0">
                         </div>
                         <div class="set-input-wrapper">
                             <div class="input-label">Отдых</div>
-                            <input type="number" class="set-input" value="${set.rest}" 
+                            <input type="text" 
+                                   inputmode="numeric"
+                                   class="set-input" 
+                                   value="${set.rest}" 
                                    oninput="updateSet(${index}, 'rest', this.value)"
                                    onchange="updateSet(${index}, 'rest', this.value)"
+                                   onfocus="this.select()"
                                    ${set.completed ? 'disabled' : ''} 
-                                   placeholder="0" 
-                                   step="1" 
-                                   min="0">
+                                   placeholder="0">
                         </div>
                     </div>
                     <button class="set-remove ${set.completed ? 'hidden' : ''}" 
@@ -624,11 +643,25 @@
         // Обновление подхода
         function updateSet(index, field, value) {
             if (sets[index] && !sets[index].completed) {
-                const numValue = parseFloat(value);
-                if (!isNaN(numValue)) {
-                    sets[index][field] = numValue;
-                } else if (value === '' || value === null) {
-                    sets[index][field] = 0;
+                // Заменяем запятую на точку для корректного парсинга
+                const normalizedValue = String(value).replace(',', '.');
+                
+                if (field === 'reps' || field === 'rest') {
+                    // Для повторов и отдыха - целые числа
+                    const numValue = parseInt(normalizedValue);
+                    if (!isNaN(numValue)) {
+                        sets[index][field] = numValue;
+                    } else if (normalizedValue === '' || normalizedValue === null) {
+                        sets[index][field] = 0;
+                    }
+                } else {
+                    // Для веса - дробные числа
+                    const numValue = parseFloat(normalizedValue);
+                    if (!isNaN(numValue)) {
+                        sets[index][field] = numValue;
+                    } else if (normalizedValue === '' || normalizedValue === null) {
+                        sets[index][field] = 0;
+                    }
                 }
                 console.log(`Обновлен подход ${index}, поле ${field}: ${sets[index][field]}`);
             }

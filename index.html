@@ -1027,16 +1027,31 @@
                     if (e.target.id === 'modalAddExercise') UI.toggleModal('modalAddExercise', false);
                 };
 
-                // Восстанавливаем счетчик, если сессия та же
+                // === ЛОГИКА СЧЕТЧИКА И СЕССИИ ===
                 const savedSession = localStorage.getItem('gym_session_id');
                 const savedOrder = localStorage.getItem('gym_order_counter');
+                const lastDate = localStorage.getItem('gym_last_date');
                 
-                // Если мы продолжаем ту же тренировку (проверяем по времени, например 12 часов)
-                // Но пока для простоты: если есть сохраненная сессия, берем её счетчик
-                if (savedSession && savedOrder) {
+                // Получаем сегодняшнюю дату в формате "DD.MM.YYYY"
+                const today = new Date().toLocaleDateString('ru-RU');
+
+                if (lastDate !== today) {
+                    // 🔥 НОВЫЙ ДЕНЬ: Сбрасываем всё
+                    console.log("Новый день - сброс счетчика");
+                    this.state.orderCounter = 0;
+                    // Генерируем новую сессию на день (чтобы связывать упражнения, если нужно)
+                    this.state.sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                    
+                    // Сохраняем новые данные
+                    localStorage.setItem('gym_last_date', today);
+                    localStorage.setItem('gym_session_id', this.state.sessionId);
+                    localStorage.setItem('gym_order_counter', '0');
+                } else {
+                    // 🔥 ТОТ ЖЕ ДЕНЬ: Продолжаем нумерацию
                     this.state.orderCounter = parseInt(savedOrder) || 0;
-                    // Можно восстановить и sessionId, если нужно
-                    // this.state.sessionId = savedSession; 
+                    
+                    // Восстанавливаем ID сессии, если он был (или создаем, если вдруг нет)
+                    this.state.sessionId = savedSession || ('session_' + Date.now());
                 }
 
                 this.loadGroups();
@@ -1134,13 +1149,13 @@
                 const exerciseName = typeof ex === 'string' ? ex : ex.name;
                 const exerciseObj = typeof ex === 'object' ? ex : {name: exerciseName, desc: '', image: ''};
                 
-                // Генерируем новый sessionId для новой тренировки
-                this.state.sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                // ❌ УДАЛЯЕМ ГЕНЕРАЦИЮ НОВОЙ СЕССИИ (используем ту, что создана в init на весь день)
+                // ❌ УДАЛЯЕМ СБРОС СЧЕТЧИКА (чтобы он продолжался: 5, 6, 7...)
                 
-                // Сбрасываем счетчик для новой тренировки
-                this.state.orderCounter = 0;
-                localStorage.setItem('gym_session_id', this.state.sessionId);
-                localStorage.setItem('gym_order_counter', '0');
+                // Если вдруг sessionId нет (баг), создаем страховку
+                if (!this.state.sessionId) {
+                    this.state.sessionId = 'session_' + Date.now();
+                }
                 
                 this.state.exercise = exerciseObj;
                 UI.showScreen('workout');

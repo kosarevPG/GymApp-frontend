@@ -463,6 +463,119 @@
             color: #c62828;
             text-align: center;
         }
+        
+        /* Модальное окно для справочника */
+        .modal-overlay {
+            display: none; /* Скрыто по умолчанию */
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5); /* Затемнение */
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(3px); /* Размытие фона (iOS style) */
+        }
+        
+        .modal-overlay.open {
+            display: flex;
+            animation: fadeIn 0.2s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal-card {
+            background: white;
+            width: 90%;
+            max-width: 400px;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            position: relative;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        
+        .modal-card .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .modal-card .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .modal-card .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #888;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-body {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .modal-img {
+            width: 100%;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            object-fit: cover;
+            background: #f0f0f0;
+            min-height: 200px;
+        }
+        
+        .modal-desc {
+            font-size: 15px;
+            line-height: 1.5;
+            color: #444;
+            white-space: pre-wrap; /* Сохраняет абзацы */
+            margin: 0;
+        }
+        
+        /* Кнопка Info в списке */
+        .info-btn {
+            background: #eef2ff;
+            color: #667eea;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 18px;
+            margin-left: 10px;
+            cursor: pointer;
+            flex-shrink: 0; /* Чтобы не сжималась */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .info-btn:active {
+            background: #667eea;
+            color: white;
+            transform: scale(0.95);
+        }
+        
+        .list-item {
+            display: flex;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -512,6 +625,20 @@
                 <button class="modal-close" onclick="closeHistory()">×</button>
             </div>
             <div id="history-content" class="loading">Загрузка истории...</div>
+        </div>
+    </div>
+    
+    <!-- Modal: Exercise Info -->
+    <div id="infoModal" class="modal-overlay" onclick="closeInfoModal(event)">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modalTitle">Название упражнения</h3>
+                <button class="modal-close" onclick="closeInfoModal(null)">✕</button>
+            </div>
+            <div class="modal-body">
+                <img id="modalImage" src="" alt="Техника выполнения" class="modal-img">
+                <p id="modalDesc" class="modal-desc">Описание...</p>
+            </div>
         </div>
     </div>
     
@@ -776,11 +903,21 @@
                     }
                 }
                 
-                // Удаляем дубликаты и сортируем по алфавиту
-                const uniqueExercises = [...new Set(allExercises)];
+                // Удаляем дубликаты по имени и сортируем по алфавиту
+                const uniqueExercisesMap = new Map();
+                allExercises.forEach(ex => {
+                    const name = typeof ex === 'string' ? ex : ex.name;
+                    if (!uniqueExercisesMap.has(name)) {
+                        uniqueExercisesMap.set(name, typeof ex === 'object' ? ex : {name: ex, desc: '', image: ''});
+                    }
+                });
+                
+                const uniqueExercises = Array.from(uniqueExercisesMap.values());
                 uniqueExercises.sort((a, b) => {
                     // Сортируем по алфавиту (кириллица)
-                    return a.localeCompare(b, 'ru');
+                    const nameA = typeof a === 'string' ? a : a.name;
+                    const nameB = typeof b === 'string' ? b : b.name;
+                    return nameA.localeCompare(nameB, 'ru');
                 });
                 
                 if (uniqueExercises.length > 0) {
@@ -797,11 +934,28 @@
         function displayExercises(exercises) {
             const list = document.getElementById('exercises-list');
             list.innerHTML = '<div class="list-grid">' +
-                exercises.map(ex => `
-                    <div class="list-item" onclick="selectExercise('${ex.replace(/'/g, "\\'")}')">
-                        <h3>${ex}</h3>
-                    </div>
-                `).join('') + '</div>';
+                exercises.map(ex => {
+                    // ex теперь может быть объектом {name, desc, image} или строкой (для обратной совместимости)
+                    const exerciseName = typeof ex === 'string' ? ex : ex.name;
+                    const exerciseDesc = typeof ex === 'object' ? (ex.desc || 'Описание отсутствует') : '';
+                    const exerciseImage = typeof ex === 'object' ? (ex.image || '') : '';
+                    
+                    // Экранируем кавычки и переносы строк для безопасной вставки в HTML
+                    const safeName = exerciseName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const safeDesc = exerciseDesc.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, '\\n');
+                    const safeImage = exerciseImage.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    
+                    return `
+                        <div class="list-item">
+                            <div style="flex-grow: 1; cursor: pointer;" onclick="selectExercise('${safeName}')">
+                                <h3>${exerciseName}</h3>
+                            </div>
+                            <button class="info-btn" onclick="openInfoModal('${safeName}', '${safeDesc}', '${safeImage}')">
+                                i
+                            </button>
+                        </div>
+                    `;
+                }).join('') + '</div>';
         }
         
         // Выбор упражнения
@@ -1083,6 +1237,37 @@
         
         function closeHistory() {
             document.getElementById('modalHistory').classList.remove('active');
+        }
+        
+        // Открыть справочник упражнения
+        function openInfoModal(title, desc, image) {
+            // Заполняем данными
+            document.getElementById('modalTitle').textContent = title;
+            
+            // Обработка описания
+            const descEl = document.getElementById('modalDesc');
+            // Если описание "undefined" или пустое
+            descEl.textContent = (desc && desc !== 'undefined' && desc !== 'Описание отсутствует') ? desc : 'Описание пока не добавлено.';
+            
+            // Обработка картинки
+            const imgEl = document.getElementById('modalImage');
+            if (image && image !== 'undefined' && image !== '') {
+                imgEl.src = image;
+                imgEl.style.display = 'block';
+            } else {
+                imgEl.style.display = 'none'; // Скрываем, если картинки нет
+            }
+            
+            // Показываем окно
+            document.getElementById('infoModal').classList.add('open');
+        }
+        
+        // Закрыть справочник
+        function closeInfoModal(event) {
+            // Закрываем, если кликнули по фону (overlay) или по крестику (event === null)
+            if (event === null || event.target.id === 'infoModal') {
+                document.getElementById('infoModal').classList.remove('open');
+            }
         }
     </script>
 </body>

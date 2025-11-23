@@ -701,6 +701,40 @@
             tg.expand();
         }
 
+        // ==================== HAPTIC FEEDBACK ====================
+        const Haptic = {
+            // Безопасный вызов вибрации
+            impact(style = 'medium') {
+                try {
+                    if (tg?.HapticFeedback?.impactOccurred) {
+                        tg.HapticFeedback.impactOccurred(style); // 'light', 'medium', 'heavy', 'rigid', 'soft'
+                    }
+                } catch (e) {
+                    // Игнорируем ошибки, если вибрация недоступна
+                }
+            },
+            
+            selection() {
+                try {
+                    if (tg?.HapticFeedback?.selectionChanged) {
+                        tg.HapticFeedback.selectionChanged();
+                    }
+                } catch (e) {
+                    // Игнорируем ошибки
+                }
+            },
+            
+            notification(type = 'success') {
+                try {
+                    if (tg?.HapticFeedback?.notificationOccurred) {
+                        tg.HapticFeedback.notificationOccurred(type); // 'error', 'success', 'warning'
+                    }
+                } catch (e) {
+                    // Игнорируем ошибки
+                }
+            }
+        };
+
         // ==================== API MODULE ====================
         const API = {
             async request(endpoint, params = {}, method = 'GET', body = null) {
@@ -751,6 +785,8 @@
                 const btn = document.getElementById('timerStartBtn');
                 if (!btn) return;
                 
+                Haptic.selection(); // 📳 Виброотклик при переключении таймера
+                
                 if (this.running) {
                     this.stop();
                     btn.textContent = "Старт";
@@ -778,6 +814,7 @@
             },
             
             reset() {
+                Haptic.impact('light'); // 📳 Легкая вибрация при сбросе
                 this.stop();
                 this.accumulated = 0;
                 this.render(0);
@@ -843,6 +880,7 @@
             },
 
             async selectGroup(group) {
+                Haptic.selection(); // 📳 Виброотклик при выборе группы
                 this.state.group = group;
                 UI.showScreen('exercises');
                 UI.updateNav(group, true, false);
@@ -856,6 +894,7 @@
             },
 
             async loadAllExercises() {
+                Haptic.selection(); // 📳 Виброотклик при выборе "Все"
                 this.state.group = 'Все';
                 UI.showScreen('exercises');
                 UI.updateNav('Все', true, false);
@@ -905,6 +944,7 @@
             },
 
             async selectExercise(ex) {
+                Haptic.selection(); // 📳 Виброотклик при выборе упражнения
                 const exerciseName = typeof ex === 'string' ? ex : ex.name;
                 this.state.exercise = typeof ex === 'object' ? ex : {name: exerciseName, desc: '', image: ''};
                 UI.showScreen('workout');
@@ -924,6 +964,7 @@
             },
 
             addSetRow() {
+                Haptic.impact('light'); // 📳 Легкая вибрация при добавлении подхода
                 const last = this.state.sets[this.state.sets.length - 1] || {weight: 0, reps: 0, rest: 0};
                 this.state.sets.push({ ...last, completed: false, id: Date.now() + Math.random() });
                 UI.renderSets(this.state.sets);
@@ -949,6 +990,7 @@
                 if (set.completed) return;
                 
                 if (!set.weight || !set.reps) {
+                    Haptic.notification('error'); // 📳 Вибрация ошибки
                     alert('Пожалуйста, заполните вес и повторы');
                     document.querySelector(`[data-id="${id}"] .set-checkbox`).checked = false;
                     return;
@@ -965,9 +1007,12 @@
                 });
 
                 if (res.status !== 'success') {
+                    Haptic.notification('error'); // 📳 Вибрация ошибки
                     alert("Ошибка сохранения!");
                     set.completed = false;
                     UI.renderSets(this.state.sets);
+                } else {
+                    Haptic.impact('medium'); // 📳 Приятный легкий стук при успехе
                 }
             },
 
@@ -980,6 +1025,7 @@
             },
 
             async loadHistory() {
+                Haptic.impact('light'); // 📳 Легкая вибрация при открытии истории
                 UI.toggleModal('modalHistory', true);
                 const cont = document.getElementById('history-content');
                 cont.innerHTML = 'Загрузка...';
@@ -1172,6 +1218,7 @@
             },
 
             showInfo(ex) {
+                Haptic.impact('light'); // 📳 Легкая вибрация при открытии информации
                 const exerciseName = typeof ex === 'string' ? ex : ex.name;
                 const exerciseDesc = typeof ex === 'object' ? (ex.desc || 'Описание отсутствует') : '';
                 const exerciseImage = typeof ex === 'object' ? (ex.image || '') : '';

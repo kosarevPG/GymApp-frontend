@@ -195,6 +195,59 @@
             box-shadow: 0 4px 16px rgba(0,0,0,0.1);
         }
         
+        /* Карточка таймера */
+        .timer-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        /* Цифры времени */
+        .timer-display {
+            font-size: 32px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums; /* Чтобы цифры не скакали при смене */
+            color: #333;
+            letter-spacing: 1px;
+        }
+        
+        /* Кнопки */
+        .timer-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .timer-btn {
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        /* Стиль кнопки Старт/Стоп */
+        .timer-btn.start {
+            background-color: #eef2ff;
+            color: #667eea;
+        }
+        .timer-btn.start.active { /* Когда таймер идет */
+            background-color: #ffebee;
+            color: #ef5350;
+        }
+        
+        /* Стиль кнопки Сброс */
+        .timer-btn.reset {
+            background-color: #f5f5f5;
+            color: #888;
+        }
+        
         .set-row {
             display: flex;
             align-items: center;
@@ -438,6 +491,13 @@
         <!-- Screen 3: Workout -->
         <div id="screen-workout" class="screen">
             <div class="workout-container">
+                <div class="timer-card">
+                    <div class="timer-display" id="timerDisplay">00:00</div>
+                    <div class="timer-controls">
+                        <button class="timer-btn start" id="timerStartBtn" onclick="toggleTimer()">Старт</button>
+                        <button class="timer-btn reset" onclick="resetTimer()">Сброс</button>
+                    </div>
+                </div>
                 <div id="sets-container"></div>
                 <button class="btn-add-set" onclick="addSet()">+ Добавить подход</button>
             </div>
@@ -474,6 +534,64 @@
         let currentExercise = '';
         let sets = [];
         let userId = null;
+        
+        // Таймер
+        let timerInterval = null;
+        let timerSeconds = 0;
+        let isTimerRunning = false;
+        
+        function formatTime(totalSeconds) {
+            const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+            const s = (totalSeconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+        
+        function updateTimerDisplay() {
+            const display = document.getElementById('timerDisplay');
+            if (display) {
+                display.textContent = formatTime(timerSeconds);
+            }
+        }
+        
+        function toggleTimer() {
+            const btn = document.getElementById('timerStartBtn');
+            if (!btn) return;
+            
+            if (isTimerRunning) {
+                // Останавливаем (Пауза)
+                clearInterval(timerInterval);
+                isTimerRunning = false;
+                btn.textContent = "Старт";
+                btn.classList.remove('active');
+            } else {
+                // Запускаем
+                isTimerRunning = true;
+                btn.textContent = "Стоп";
+                btn.classList.add('active');
+                
+                timerInterval = setInterval(() => {
+                    timerSeconds++;
+                    updateTimerDisplay();
+                }, 1000);
+            }
+        }
+        
+        function resetTimer() {
+            // Останавливаем
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            timerSeconds = 0;
+            
+            // Обновляем UI
+            updateTimerDisplay();
+            
+            // Возвращаем кнопку в исходное состояние
+            const btn = document.getElementById('timerStartBtn');
+            if (btn) {
+                btn.textContent = "Старт";
+                btn.classList.remove('active');
+            }
+        }
         
         // Получение user_id
         if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {

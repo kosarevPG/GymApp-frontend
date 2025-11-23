@@ -21,6 +21,7 @@
             min-height: 100vh;
             color: #333;
             overflow-x: hidden;
+            touch-action: manipulation;
         }
         
         /* Navbar */
@@ -97,8 +98,8 @@
         
         .list-item {
             background: white;
-            padding: 16px 20px;
-            border-radius: 12px;
+            padding: 12px 16px;
+            border-radius: 10px;
             text-align: left;
             cursor: pointer;
             transition: all 0.3s;
@@ -112,7 +113,7 @@
         }
         
         .list-item h3 {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 500;
             color: #333;
             margin: 0;
@@ -121,20 +122,20 @@
         /* Screen 3: Workout */
         .workout-container {
             background: white;
-            border-radius: 20px;
-            padding: 20px;
-            margin-top: 20px;
+            border-radius: 16px;
+            padding: 12px;
+            margin-top: 12px;
             box-shadow: 0 4px 16px rgba(0,0,0,0.1);
         }
         
         .set-row {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 16px;
-            margin-bottom: 12px;
+            gap: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
             background: #f9f9f9;
-            border-radius: 12px;
+            border-radius: 8px;
             border: 2px solid transparent;
             transition: all 0.3s;
         }
@@ -151,45 +152,73 @@
         }
         
         .set-checkbox {
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             cursor: pointer;
             flex-shrink: 0;
         }
         
-        .set-input {
+        .set-inputs-group {
             flex: 1;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 16px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        
+        .set-input-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .set-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
             text-align: center;
             background: white;
+            -webkit-appearance: none;
+            -moz-appearance: textfield;
+            touch-action: manipulation;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+        
+        .set-input::-webkit-outer-spin-button,
+        .set-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
         }
         
         .set-input:focus {
             outline: none;
             border-color: #667eea;
+            background: #fff;
         }
         
         .set-input:disabled {
             background: #f5f5f5;
             cursor: not-allowed;
+            opacity: 0.6;
         }
         
         .set-remove {
             background: #ff5252;
             color: white;
             border: none;
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 18px;
+            font-size: 16px;
             flex-shrink: 0;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 0;
         }
         
         .set-remove:active {
@@ -202,15 +231,15 @@
         
         .btn-add-set {
             width: 100%;
-            padding: 16px;
+            padding: 12px;
             background: #667eea;
             color: white;
             border: none;
-            border-radius: 12px;
-            font-size: 16px;
+            border-radius: 8px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 12px;
+            margin-top: 8px;
         }
         
         .btn-add-set:active {
@@ -218,10 +247,10 @@
         }
         
         .input-label {
-            font-size: 12px;
+            font-size: 10px;
             color: #666;
-            margin-bottom: 4px;
             text-align: center;
+            margin: 0;
         }
         
         /* Modal */
@@ -549,24 +578,36 @@
                 <div class="set-row ${set.completed ? 'completed' : ''}" data-id="${set.id}">
                     <input type="checkbox" class="set-checkbox" ${set.completed ? 'checked' : ''} 
                            onchange="toggleSet(${index})" ${set.completed ? 'disabled' : ''}>
-                    <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
-                        <div>
-                            <div class="input-label">Вес (кг)</div>
+                    <div class="set-inputs-group">
+                        <div class="set-input-wrapper">
+                            <div class="input-label">Вес</div>
                             <input type="number" class="set-input" value="${set.weight}" 
+                                   oninput="updateSet(${index}, 'weight', this.value)"
                                    onchange="updateSet(${index}, 'weight', this.value)"
-                                   ${set.completed ? 'disabled' : ''} placeholder="0">
+                                   ${set.completed ? 'disabled' : ''} 
+                                   placeholder="0" 
+                                   step="0.5" 
+                                   min="0">
                         </div>
-                        <div>
+                        <div class="set-input-wrapper">
                             <div class="input-label">Повторы</div>
                             <input type="number" class="set-input" value="${set.reps}" 
+                                   oninput="updateSet(${index}, 'reps', this.value)"
                                    onchange="updateSet(${index}, 'reps', this.value)"
-                                   ${set.completed ? 'disabled' : ''} placeholder="0">
+                                   ${set.completed ? 'disabled' : ''} 
+                                   placeholder="0" 
+                                   step="1" 
+                                   min="0">
                         </div>
-                        <div>
-                            <div class="input-label">Отдых (сек)</div>
+                        <div class="set-input-wrapper">
+                            <div class="input-label">Отдых</div>
                             <input type="number" class="set-input" value="${set.rest}" 
+                                   oninput="updateSet(${index}, 'rest', this.value)"
                                    onchange="updateSet(${index}, 'rest', this.value)"
-                                   ${set.completed ? 'disabled' : ''} placeholder="0">
+                                   ${set.completed ? 'disabled' : ''} 
+                                   placeholder="0" 
+                                   step="1" 
+                                   min="0">
                         </div>
                     </div>
                     <button class="set-remove ${set.completed ? 'hidden' : ''}" 
@@ -578,7 +619,13 @@
         // Обновление подхода
         function updateSet(index, field, value) {
             if (sets[index] && !sets[index].completed) {
-                sets[index][field] = parseFloat(value) || 0;
+                const numValue = parseFloat(value);
+                if (!isNaN(numValue)) {
+                    sets[index][field] = numValue;
+                } else if (value === '' || value === null) {
+                    sets[index][field] = 0;
+                }
+                console.log(`Обновлен подход ${index}, поле ${field}: ${sets[index][field]}`);
             }
         }
         

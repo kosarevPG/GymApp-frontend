@@ -275,6 +275,11 @@
             }
         }
         
+        // URL бэкенда (Render.com)
+        // ВАЖНО: Замените на ваш реальный URL Render.com!
+        // Например: 'https://gym-logger-bot-y602.onrender.com'
+        const BACKEND_URL = 'https://gym-logger-bot-y602.onrender.com';
+        
         // Парсинг URL параметров
         const urlParams = new URLSearchParams(window.location.search);
         const exerciseName = decodeURIComponent(urlParams.get('ex') || 'Упражнение');
@@ -621,129 +626,97 @@
                 }
                 
                 // Формируем итоговый JSON
+                const setsCount = workoutBuffer.length;
+                
+                if (setsCount === 0) {
+                    alert('Пожалуйста, добавьте хотя бы один подход перед сохранением');
+                    return;
+                }
+                
+                // Получаем user_id из Telegram WebApp
+                let userId = null;
+                if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                    userId = tg.initDataUnsafe.user.id;
+                    console.log('User ID из Telegram:', userId);
+                } else if (tg && tg.initData) {
+                    // Пытаемся распарсить initData для получения user_id
+                    try {
+                        const params = new URLSearchParams(tg.initData);
+                        const userParam = params.get('user');
+                        if (userParam) {
+                            const user = JSON.parse(userParam);
+                            userId = user.id;
+                            console.log('User ID из initData:', userId);
+                        }
+                    } catch (e) {
+                        console.warn('Не удалось получить user_id из initData:', e);
+                    }
+                }
+                
                 const finalData = {
                     type: "workout_data",
-                    payload: workoutBuffer
+                    payload: workoutBuffer,
+                    user_id: userId  // Добавляем user_id для отправки сообщения в Telegram
                 };
                 
-                console.log('Sending data:', finalData);
-                
-                // Проверяем, что Telegram WebApp SDK доступен
-                if (!tg) {
-                    console.error('Telegram WebApp SDK not available');
-                    alert('Ошибка: Telegram WebApp SDK не доступен');
-                    return;
-                }
-                
-                if (!tg.sendData) {
-                    console.error('tg.sendData is not available');
-                    console.log('Available tg methods:', Object.keys(tg));
-                    alert('Ошибка: метод sendData не доступен');
-                    return;
-                }
-                
-                const dataString = JSON.stringify(finalData);
-                console.log('Sending data string:', dataString);
-                console.log('Data length:', dataString.length);
-                
-                // Показываем информацию о сохранении
-                const setsCount = workoutBuffer.length;
-                console.log(`Сохранение ${setsCount} подходов...`);
+                console.log('=== ОТПРАВКА ДАННЫХ ЧЕРЕЗ HTTP POST ===');
+                console.log('Backend URL:', BACKEND_URL);
+                console.log('Данные для отправки:', finalData);
+                console.log('Количество подходов:', setsCount);
+                console.log('User ID:', userId);
                 
                 try {
-                    // Проверяем, что мы в Telegram
-                    console.log('=== ПРОВЕРКА TELEGRAM WEBAPP ===');
-                    console.log('tg объект существует:', !!tg);
-                    console.log('tg.version:', tg?.version);
-                    console.log('tg.platform:', tg?.platform);
-                    console.log('tg.isExpanded:', tg?.isExpanded);
+                    // Отправляем данные через HTTP POST
+                    const response = await fetch(`${BACKEND_URL}/api/webapp-data`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(finalData)
+                    });
                     
-                    // Проверяем доступность sendData
-                    if (!tg || typeof tg.sendData !== 'function') {
-                        console.error('❌ tg.sendData не доступен!');
-                        console.log('Доступные методы:', Object.keys(tg || {}));
-                        alert('Ошибка: Telegram WebApp SDK не работает. Убедитесь, что WebApp открыт через Telegram.');
-                        return;
+                    console.log('Response status:', response.status);
+                    console.log('Response ok:', response.ok);
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Ошибка ответа сервера:', errorText);
+                        throw new Error(`Ошибка сервера: ${response.status} - ${errorText}`);
                     }
                     
-                    console.log('✅ tg.sendData доступен');
-                    console.log('Данные для отправки:', dataString);
-                    console.log('Количество подходов:', workoutBuffer.length);
+                    const result = await response.json();
+                    console.log('Ответ от сервера:', result);
                     
-                    // КРИТИЧЕСКАЯ ПРОВЕРКА: Убеждаемся, что мы в Telegram
-                    console.log('=== КРИТИЧЕСКАЯ ПРОВЕРКА TELEGRAM ===');
-                    console.log('tg объект:', tg);
-                    console.log('tg.initData:', tg.initData);
-                    console.log('tg.initDataUnsafe:', tg.initDataUnsafe);
-                    console.log('tg.platform:', tg.platform);
-                    console.log('tg.version:', tg.version);
-                    
-                    if (!tg.initData && !tg.initDataUnsafe) {
-                        const errorMsg = '❌ КРИТИЧЕСКАЯ ОШИБКА: WebApp открыт НЕ через Telegram!\n\nДанные НЕ будут отправлены.\n\nЗакройте это окно и откройте WebApp через кнопку в боте @GymAppKPGBot';
-                        console.error(errorMsg);
-                        alert(errorMsg);
-                        return; // НЕ продолжаем, если не в Telegram
-                    }
-                    
-                    // Отправляем данные в бот
-                    console.log('Отправка данных через tg.sendData()...');
-                    console.log('Данные для отправки (строка):', dataString);
-                    console.log('Длина данных:', dataString.length);
-                    console.log('Тип данных:', typeof dataString);
-                    
-                    try {
-                        // Проверяем, что данные не пустые
-                        if (!dataString || dataString.length === 0) {
-                            throw new Error('Данные для отправки пустые!');
-                        }
-                        
-                        // Проверяем, что это строка
-                        if (typeof dataString !== 'string') {
-                            console.warn('⚠️ Данные не строка, преобразуем...');
-                            dataString = String(dataString);
-                        }
-                        
-                        // Отправляем данные
-                        console.log('Вызов tg.sendData() с данными:', dataString.substring(0, 100) + '...');
-                        console.log('Полные данные:', dataString);
-                        
-                        // Вызываем sendData
-                        tg.sendData(dataString);
-                        console.log('✅ tg.sendData() вызван успешно');
-                        
-                        // Ждем немного перед показом alert
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        
-                        // Показываем пользователю, что данные отправлены
-                        const setsCount = workoutBuffer.length;
-                        const alertMessage = `✅ Отправлено ${setsCount} подходов!\n\nДанные отправлены в бот.\n\nПроверьте сообщение от бота через несколько секунд.`;
+                    if (result.status === 'success') {
+                        // Успешно сохранено
+                        const alertMessage = `✅ Сохранено ${setsCount} подходов!\n\n${result.message || 'Данные успешно записаны в таблицу.'}`;
                         alert(alertMessage);
-                        console.log('Alert показан пользователю');
+                        console.log('✅ Данные успешно отправлены и сохранены');
                         
-                        // Ждем дольше, чтобы данные успели отправиться
-                        console.log('Ожидание отправки данных (5 секунд)...');
-                        await new Promise(resolve => setTimeout(resolve, 5000));
-                        console.log('Задержка завершена, закрываем WebApp...');
-                        
-                        // Закрываем WebApp
-                        if (tg.close) {
+                        // Закрываем WebApp через 1 секунду
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        if (tg && tg.close) {
                             tg.close();
                             console.log('✅ WebApp закрыт');
-                        } else {
-                            console.warn('⚠️ tg.close() не доступен');
                         }
-                    } catch (sendError) {
-                        console.error('❌ КРИТИЧЕСКАЯ ОШИБКА при вызове tg.sendData():', sendError);
-                        console.error('Тип ошибки:', typeof sendError);
-                        console.error('Сообщение ошибки:', sendError.message);
-                        console.error('Стек ошибки:', sendError.stack);
-                        alert('❌ Ошибка отправки данных: ' + sendError.message + '\n\nПроверьте консоль для деталей.');
-                        throw sendError;
+                    } else {
+                        throw new Error(result.message || 'Неизвестная ошибка');
                     }
+                    
                 } catch (error) {
-                    console.error('❌ КРИТИЧЕСКАЯ ОШИБКА:', error);
-                    console.error('Стек:', error.stack);
-                    alert('Ошибка: ' + error.message + '\n\nПроверьте консоль для деталей.');
+                    console.error('❌ ОШИБКА при отправке данных:', error);
+                    console.error('Тип ошибки:', typeof error);
+                    console.error('Сообщение ошибки:', error.message);
+                    console.error('Стек ошибки:', error.stack);
+                    
+                    let errorMessage = 'Ошибка при отправке данных: ' + error.message;
+                    
+                    // Проверяем, не CORS ли это
+                    if (error.message.includes('CORS') || error.message.includes('fetch')) {
+                        errorMessage += '\n\nВозможная проблема с CORS. Проверьте настройки бэкенда.';
+                    }
+                    
+                    alert('❌ ' + errorMessage + '\n\nПроверьте консоль для деталей.');
                     // Не закрываем WebApp при ошибке
                 }
                 

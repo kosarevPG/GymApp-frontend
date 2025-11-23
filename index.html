@@ -617,6 +617,34 @@
             opacity: 0.8;
         }
         
+        /* Поле для заметок */
+        .note-wrapper {
+            background: #fff9c4; /* Светло-желтый, как стикер */
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin: 0 0 12px 0; /* Отступы как у карточки */
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #fbc02d;
+        }
+        
+        .note-icon {
+            font-size: 16px;
+        }
+        
+        .note-input {
+            border: none;
+            background: transparent;
+            width: 100%;
+            font-size: 14px;
+            color: #333;
+            outline: none;
+        }
+        .note-input::placeholder {
+            color: #9e9e9e;
+        }
+        
         .loading {
             text-align: center;
             padding: 40px;
@@ -1120,8 +1148,13 @@
                 
                 // Загрузка последнего результата для автозаполнения
                 const res = await API.getHistory(exerciseName, 'last');
-                const initialSets = (res.sets && res.sets.length) 
-                    ? res.sets.map((s, idx) => {
+                
+                // Раньше res.sets был массивом, теперь res может быть {sets: [], note: ''}
+                const historySets = res.sets || [];
+                const lastNote = res.note || "";
+                
+                const initialSets = (historySets.length) 
+                    ? historySets.map((s, idx) => {
                         let rest = s.rest || 0;
                         if (rest > 100) rest = rest / 60.0; // Конвертируем секунды в минуты
                         return {...s, rest, completed: false, id: Date.now() + idx + Math.random()};
@@ -1132,7 +1165,8 @@
                 this.state.activeExercises = [{
                     name: exerciseName,
                     exerciseObj: exerciseObj,
-                    sets: initialSets
+                    sets: initialSets,
+                    note: lastNote  // Загружаем заметку из истории
                 }];
                 
                 // Для обратной совместимости
@@ -1186,7 +1220,8 @@
                     weight: set.weight,
                     reps: set.reps,
                     rest: set.rest,
-                    order: this.state.orderCounter // Отправляем порядковый номер
+                    order: this.state.orderCounter, // Отправляем порядковый номер
+                    note: (this.state.activeExercises[0] && this.state.activeExercises[0].note) || ""  // Отправляем заметку из первого упражнения
                 });
 
                 if (res.status !== 'success') {
@@ -1208,6 +1243,12 @@
             },
 
             // ==================== SUPERSET FUNCTIONS ====================
+            
+            updateNote(exIndex, value) {
+                if (this.state.activeExercises[exIndex]) {
+                    this.state.activeExercises[exIndex].note = value;
+                }
+            },
             
             async toggleSetInSuperset(exIndex, setIndex) {
                 const exBlock = this.state.activeExercises[exIndex];
@@ -1236,7 +1277,8 @@
                     weight: set.weight,
                     reps: set.reps,
                     rest: set.rest,
-                    order: this.state.orderCounter // Отправляем порядковый номер
+                    order: this.state.orderCounter, // Отправляем порядковый номер
+                    note: exBlock.note || ""  // Отправляем заметку
                 });
 
                 if (res.status !== 'success') {
@@ -1372,8 +1414,11 @@
                 
                 // Загружаем последний результат для автозаполнения
                 const res = await API.getHistory(exerciseName, 'last');
-                const initialSets = (res.sets && res.sets.length) 
-                    ? res.sets.map((s, idx) => {
+                const historySets = res.sets || [];
+                const lastNote = res.note || "";
+                
+                const initialSets = (historySets.length) 
+                    ? historySets.map((s, idx) => {
                         let rest = s.rest || 0;
                         if (rest > 100) rest = rest / 60.0;
                         return {...s, rest, completed: false, id: Date.now() + idx + Math.random()};
@@ -1384,7 +1429,8 @@
                 App.state.activeExercises.push({
                     name: exerciseName,
                     exerciseObj: exerciseObj,
-                    sets: initialSets
+                    sets: initialSets,
+                    note: lastNote  // Загружаем заметку из истории
                 });
                 
                 UI.toggleModal('modalAddExercise', false);
@@ -1586,6 +1632,20 @@
                         `;
                     }).join('');
                     
+                    // Берем текущее значение заметки или пустую строку
+                    const currentNote = exBlock.note || '';
+                    
+                    // HTML заметки
+                    const noteHtml = `
+                        <div class="note-wrapper">
+                            <span class="note-icon">📝</span>
+                            <input type="text" class="note-input" 
+                                placeholder="Настройки (напр. Сиденье 4)" 
+                                value="${currentNote.replace(/"/g, '&quot;')}"
+                                oninput="App.updateNote(${exIndex}, this.value)">
+                        </div>
+                    `;
+                    
                     // Собираем карточку целиком
                     return `
                         <div class="exercise-card">
@@ -1593,6 +1653,8 @@
                                 <span class="exercise-title">${exIndex + 1}. ${exerciseName}</span>
                                 ${exIndex > 0 ? `<button class="btn-remove-exercise" onclick="App.removeExerciseFromSuperset(${exIndex})">×</button>` : ''}
                             </div>
+                            
+                            ${noteHtml}
                             
                             <div class="exercise-sets">
                                 ${setsHtml}

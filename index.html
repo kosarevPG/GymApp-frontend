@@ -721,16 +721,26 @@
         }
         
         // Функция валидации ввода для веса (разрешаем только цифры, точку и запятую)
+        // И автоматически меняет запятую на точку для красоты
         function validateFloatInput(input) {
-            // Заменяем запятую на точку
-            let value = input.value.replace(',', '.');
+            // Разрешаем только цифры, точки и запятые
+            let val = input.value.replace(/[^0-9.,]/g, '');
             
-            // Обновляем значение в поле (визуально меняем запятую на точку)
-            if (input.value.includes(',')) {
-                input.value = value;
+            // Меняем запятую на точку
+            val = val.replace(',', '.');
+            
+            // Защита от двух точек (например 17.5.5)
+            const parts = val.split('.');
+            if (parts.length > 2) {
+                val = parts[0] + '.' + parts.slice(1).join('');
             }
             
-            return value;
+            // Если значение изменилось, обновляем поле
+            if (input.value !== val) {
+                input.value = val;
+            }
+            
+            return val;
         }
         
         // Отображение подходов
@@ -746,7 +756,7 @@
                             <input type="text" 
                                    inputmode="decimal"
                                    class="set-input" 
-                                   value="${set.weight}" 
+                                   value="${String(set.weight || 0).replace(',', '.')}" 
                                    oninput="const val = validateFloatInput(this); updateSet(${index}, 'weight', val)"
                                    onchange="const val = validateFloatInput(this); updateSet(${index}, 'weight', val)"
                                    onfocus="this.select()"
@@ -758,7 +768,7 @@
                             <input type="text" 
                                    inputmode="numeric"
                                    class="set-input" 
-                                   value="${set.reps}" 
+                                   value="${set.reps || 0}" 
                                    oninput="updateSet(${index}, 'reps', this.value)"
                                    onchange="updateSet(${index}, 'reps', this.value)"
                                    onfocus="this.select()"
@@ -770,7 +780,7 @@
                             <input type="text" 
                                    inputmode="numeric"
                                    class="set-input" 
-                                   value="${set.rest}" 
+                                   value="${set.rest || 0}" 
                                    oninput="updateSet(${index}, 'rest', this.value)"
                                    onchange="updateSet(${index}, 'rest', this.value)"
                                    onfocus="this.select()"

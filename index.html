@@ -492,6 +492,50 @@
             margin-left: 8px;
         }
         
+        /* Стили для суперсета в истории */
+        .history-superset-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        }
+        
+        .history-superset-header {
+            background: #f8f9fa;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #667eea;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        /* Метка "Суперсет" */
+        .badge-superset {
+            background: #667eea;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        
+        .history-item-row {
+            padding: 8px 12px;
+            border-bottom: 1px dashed #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .history-item-row:last-child { border-bottom: none; }
+        
+        .history-ex-name { font-size: 12px; color: #888; margin-bottom: 2px; }
+        .history-ex-vals { font-size: 14px; color: #333; font-weight: 500; }
+        
         /* --- Стили для Суперсетов (Новые) --- */
         
         /* Блок упражнения в суперсете */
@@ -1548,82 +1592,100 @@
                 container.innerHTML = '';
                 
                 if (!historyData || historyData.length === 0) {
-                    container.innerHTML = '<div style="text-align:center; color:#999;">История пуста</div>';
+                    container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">История пуста</div>';
                     return;
                 }
                 
                 // 1. Группируем по ДАТЕ
                 const byDate = {};
                 historyData.forEach(item => {
-                    let rawDate = item.date || item.Date || '';
-                    let dateKey = String(rawDate).split(' ')[0].split(',')[0].trim();
+                    let dateKey = String(item.date || '').split(',')[0].trim();
                     if (!dateKey) return;
                     
                     if (!byDate[dateKey]) byDate[dateKey] = {};
                     
-                    // 2. Внутри даты группируем по set_group_id (UUID)
+                    // 2. Внутри даты группируем по set_group_id
                     const groupId = item.set_group_id || 'unknown_' + Math.random();
-                    
                     if (!byDate[dateKey][groupId]) byDate[dateKey][groupId] = [];
                     byDate[dateKey][groupId].push(item);
                 });
                 
-                // 3. Сортируем даты (новые сверху)
+                // Сортировка дат
                 const sortedDates = Object.keys(byDate).sort((a, b) => {
-                    const dateA = a.replace(/\./g, '-');
-                    const dateB = b.replace(/\./g, '-');
-                    return dateB.localeCompare(dateA);
+                    // Преобразуем 23.11.2025 в 2025-11-23 для сортировки
+                    const toISO = (d) => d.split('.').reverse().join('-');
+                    return toISO(b).localeCompare(toISO(a));
                 });
                 
-                // 4. Отрисовываем
+                // Рендеринг
+                let fullHtml = '';
+                
                 sortedDates.forEach(date => {
-                    const groupsInDate = byDate[date];
+                    fullHtml += `<div class="history-date-header">📅 ${date}</div>`;
                     
-                    // Формируем HTML для групп внутри одной даты
-                    const groupsHtml = Object.values(groupsInDate).map(groupItems => {
-                        // groupItems - это массив подходов в одном суперсете
-                        let setsHtml = '';
-                        groupItems.forEach(set => {
-                            let weight = set.weight || set.Weight || 0;
-                            let reps = set.reps || set.Reps || 0;
-                            let rest = set.rest || set.Rest || 0;
+                    const groupsInDate = byDate[date];
+                    Object.values(groupsInDate).forEach(groupItems => {
+                        
+                        // Определяем, суперсет это или обычный сет
+                        // (если в группе есть упражнения с разными названиями)
+                        const uniqueNames = [...new Set(groupItems.map(i => i.exercise))];
+                        const isSuperset = uniqueNames.length > 1;
+                        
+                        // Заголовок карточки
+                        let headerHtml = '';
+                        if (isSuperset) {
+                            headerHtml = `
+                                <div class="history-superset-header">
+                                    <span class="badge-superset">Суперсет</span>
+                                    <span>${uniqueNames.join(' + ')}</span>
+                                </div>
+                            `;
+                        }
+                        
+                        // Список подходов
+                        const rowsHtml = groupItems.map(item => {
+                            // Показываем имя упражнения только если это суперсет
+                            const nameBlock = isSuperset 
+                                ? `<div class="history-ex-name">${item.exercise}</div>` 
+                                : '';
                             
                             // Форматируем отдых
                             let restDisplay = '';
-                            if (rest) {
-                                let restMinutes = rest;
-                                if (rest > 100) restMinutes = rest / 60.0;
+                            if (item.rest) {
+                                let restMinutes = item.rest;
+                                if (restMinutes > 100) restMinutes = restMinutes / 60.0;
                                 if (restMinutes % 1 === 0) {
-                                    restDisplay = `${restMinutes} мин`;
+                                    restDisplay = `${restMinutes}м`;
                                 } else {
-                                    restDisplay = `${restMinutes.toFixed(1)} мин`;
+                                    restDisplay = `${restMinutes.toFixed(1)}м`;
                                 }
                             }
-                            
-                            setsHtml += `
-                                <div class="history-set-row">
-                                    <span><b>${weight}</b> кг × <b>${reps}</b></span>
-                                    ${restDisplay ? `<span class="history-rest">отдых ${restDisplay}</span>` : ''}
+                                
+                            return `
+                                <div class="history-item-row">
+                                    <div>
+                                        ${nameBlock}
+                                        <div class="history-ex-vals">
+                                            ${item.weight} кг × ${item.reps}
+                                        </div>
+                                    </div>
+                                    <div style="color:#aaa; font-size:12px;">
+                                        ${restDisplay}
+                                    </div>
                                 </div>
                             `;
-                        });
+                        }).join('');
                         
-                        return `
-                            <div class="history-group-card" style="margin-bottom: 10px; border-left: 4px solid var(--primary);">
-                                <div class="history-sets-list">${setsHtml}</div>
+                        fullHtml += `
+                            <div class="history-superset-card">
+                                ${headerHtml}
+                                ${rowsHtml}
                             </div>
                         `;
-                    }).join('');
-                    
-                    const card = document.createElement('div');
-                    card.innerHTML = `
-                        <div style="margin-bottom: 20px;">
-                            <div class="history-date-header">📅 ${date}</div>
-                            ${groupsHtml}
-                        </div>
-                    `;
-                    container.appendChild(card);
+                    });
                 });
+                
+                container.innerHTML = fullHtml;
             },
 
             showInfo(ex) {

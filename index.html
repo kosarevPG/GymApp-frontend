@@ -538,13 +538,18 @@
                 const response = await fetch(`${BACKEND_URL}/api/history?exercise=${encodeURIComponent(exercise)}&mode=last`);
                 const result = await response.json();
                 
+                console.log('Загружена последняя тренировка:', result);
+                
                 if (result.sets && result.sets.length > 0) {
-                    // Автозаполнение из последней тренировки
-                    sets = result.sets.map(set => ({
-                        ...set,
+                    // Автозаполнение из последней тренировки - создаем все подходы
+                    sets = result.sets.map((set, idx) => ({
+                        weight: set.weight || 0,
+                        reps: set.reps || 0,
+                        rest: set.rest || 0,
                         completed: false,
-                        id: Date.now() + Math.random()
+                        id: Date.now() + idx + Math.random()
                     }));
+                    console.log(`Создано ${sets.length} подходов из последней тренировки`);
                 } else {
                     // Создаем одну пустую строку
                     sets = [{

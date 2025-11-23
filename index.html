@@ -722,15 +722,23 @@
                         grouped[key].sets.push(item);
                     });
                     
+                    console.log('История загружена:', result.history);
+                    console.log('Сгруппированная история:', grouped);
+                    
                     content.innerHTML = Object.values(grouped).map(group => `
                         <div class="history-item">
                             <div class="history-date">${group.date}</div>
                             <div class="history-sets">
-                                ${group.sets.map(set => `
-                                    <div class="history-set">
-                                        ${set.weight}кг × ${set.reps}${set.rest ? ` (отдых: ${set.rest}с)` : ''}
-                                    </div>
-                                `).join('')}
+                                ${group.sets.map(set => {
+                                    const weight = set.weight || 0;
+                                    const reps = set.reps || 0;
+                                    const rest = set.rest || 0;
+                                    return `
+                                        <div class="history-set">
+                                            ${weight}кг × ${reps}${rest ? ` (отдых: ${rest}с)` : ''}
+                                        </div>
+                                    `;
+                                }).join('')}
                             </div>
                         </div>
                     `).join('');

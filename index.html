@@ -1057,14 +1057,18 @@
                 else list.innerHTML = '<div class="error">Нет упражнений</div>';
             },
 
-            async loadAllExercises() {
-                Haptic.selection(); // 📳 Виброотклик при выборе "Все"
-                this.state.group = 'Все';
-                UI.showScreen('exercises');
-                UI.updateNav('Все', true, false);
+            async loadAllExercises(isSearchMode = false) {
+                if (!isSearchMode) {
+                    Haptic.selection(); // 📳 Виброотклик при выборе "Все"
+                    this.state.group = 'Все';
+                    UI.showScreen('exercises');
+                    UI.updateNav('Все', true, false);
+                }
                 
-                const list = document.getElementById('exercises-list');
-                list.innerHTML = '<div class="loading">Загрузка всех упражнений...</div>';
+                const list = isSearchMode ? document.getElementById('groups-list') : document.getElementById('exercises-list');
+                if (!isSearchMode) {
+                    list.innerHTML = '<div class="loading">Загрузка всех упражнений...</div>';
+                }
                 
                 try {
                     const groupsRes = await API.getGroups();
@@ -1099,8 +1103,17 @@
                         return nameA.localeCompare(nameB, 'ru');
                     });
                     
-                    if (unique.length > 0) UI.renderExercises(unique);
-                    else list.innerHTML = '<div class="error">Нет упражнений</div>';
+                    // Сохраняем в кэш
+                    App.allExercisesCache = unique;
+                    
+                    if (isSearchMode) {
+                        // Если вызвали из поиска, сразу фильтруем по текущему значению инпута
+                        const query = document.getElementById('searchGroups').value;
+                        UI.filterGlobal(query);
+                    } else {
+                        if (unique.length > 0) UI.renderExercises(unique);
+                        else list.innerHTML = '<div class="error">Нет упражнений</div>';
+                    }
                 } catch (e) {
                     console.error('Ошибка загрузки всех упражнений:', e);
                     list.innerHTML = '<div class="error">Ошибка подключения</div>';
@@ -1641,7 +1654,7 @@
                 }).join('');
                 
                 list.innerHTML = html || '<div class="loading">Ничего не найдено</div>';
-            }
+            },
 
             renderSets(sets) {
                 // Старая функция для обратной совместимости

@@ -617,6 +617,44 @@
             opacity: 0.8;
         }
         
+        /* --- Микро-аналитика --- */
+        
+        /* Контейнер для статистики под инпутами */
+        .stats-row {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 4px;
+            margin-top: 6px;
+            font-size: 11px;
+            color: #999;
+        }
+        
+        /* Блок 1ПМ */
+        .stat-1rm {
+            font-weight: 500;
+        }
+        
+        /* Блок Дельты (изменения веса) */
+        .stat-delta {
+            font-weight: 700;
+            opacity: 0; /* Скрыто по умолчанию */
+            transition: opacity 0.2s;
+        }
+        .stat-delta.visible { opacity: 1; }
+        .stat-delta.positive { color: #2e7d32; } /* Зеленый */
+        .stat-delta.negative { color: #d32f2f; } /* Красный */
+        .stat-delta.neutral { color: #999; }     /* Серый */
+        
+        /* Корректировка высоты строки, чтобы статистика влезала */
+        .set-row {
+            flex-wrap: wrap; /* Разрешаем перенос элементов */
+            padding-bottom: 8px;
+        }
+        .set-inputs-group {
+            flex-wrap: wrap;
+        }
+        
         /* Поле для заметок */
         .note-wrapper {
             background: #fff9c4; /* Светло-желтый, как стикер */
@@ -1172,9 +1210,17 @@
                     ? historySets.map((s, idx) => {
                         let rest = s.rest || 0;
                         if (rest > 100) rest = rest / 60.0; // Конвертируем секунды в минуты
-                        return {...s, rest, completed: false, id: Date.now() + idx + Math.random()};
+                        return {
+                            ...s, 
+                            rest, 
+                            completed: false, 
+                            id: Date.now() + idx + Math.random(),
+                            // Сохраняем историю для сравнения
+                            prevWeight: parseFloat(s.weight) || 0,
+                            prevReps: parseInt(s.reps) || 0
+                        };
                     })
-                    : [{weight: 0, reps: 0, rest: 0, completed: false, id: Date.now()}];
+                    : [{weight: 0, reps: 0, rest: 0, completed: false, id: Date.now(), prevWeight: 0, prevReps: 0}];
                 
                 // Инициализируем activeExercises с первым упражнением
                 this.state.activeExercises = [{
@@ -1318,6 +1364,30 @@
                     } else {
                         set[field] = parseFloat(normalized) || 0;
                     }
+                    
+                    // Обновляем UI статистики (DOM-манипуляция)
+                    const setId = set.id;
+                    
+                    // 1. Обновляем 1ПМ
+                    const ormEl = document.getElementById(`orm-${setId}`);
+                    if (ormEl) {
+                        const oneRM = UI.calculate1RM(set.weight, set.reps);
+                        ormEl.textContent = oneRM > 0 ? `🏆 1ПМ: ${oneRM}кг` : '';
+                    }
+                    
+                    // 2. Обновляем Дельту (только если меняем вес)
+                    if (field === 'weight') {
+                        const deltaEl = document.getElementById(`delta-${setId}`);
+                        if (deltaEl) {
+                            const deltaObj = UI.getDelta(set.weight, set.prevWeight);
+                            if (deltaObj) {
+                                deltaEl.textContent = deltaObj.text;
+                                deltaEl.className = `stat-delta visible ${deltaObj.class}`;
+                            } else {
+                                deltaEl.className = 'stat-delta'; // Скрываем
+                            }
+                        }
+                    }
                 }
             },
 
@@ -1436,9 +1506,17 @@
                     ? historySets.map((s, idx) => {
                         let rest = s.rest || 0;
                         if (rest > 100) rest = rest / 60.0;
-                        return {...s, rest, completed: false, id: Date.now() + idx + Math.random()};
+                        return {
+                            ...s, 
+                            rest, 
+                            completed: false, 
+                            id: Date.now() + idx + Math.random(),
+                            // Сохраняем историю для сравнения
+                            prevWeight: parseFloat(s.weight) || 0,
+                            prevReps: parseInt(s.reps) || 0
+                        };
                     })
-                    : [{weight: 0, reps: 0, rest: 0, completed: false, id: Date.now()}];
+                    : [{weight: 0, reps: 0, rest: 0, completed: false, id: Date.now(), prevWeight: 0, prevReps: 0}];
                 
                 // Добавляем упражнение в суперсет
                 App.state.activeExercises.push({
@@ -1609,35 +1687,55 @@
                         const setId = set.id || (Date.now() + exIndex * 1000 + setIndex);
                         const safeId = JSON.stringify(setId); // Для совместимости
                         
+                        // Считаем начальные значения
+                        const oneRM = UI.calculate1RM(set.weight, set.reps);
+                        const deltaObj = UI.getDelta(set.weight, set.prevWeight);
+                        
+                        let deltaHtml = '';
+                        if (deltaObj) {
+                            deltaHtml = `<span class="stat-delta visible ${deltaObj.class}" id="delta-${setId}">${deltaObj.text}</span>`;
+                        } else {
+                            deltaHtml = `<span class="stat-delta" id="delta-${setId}"></span>`;
+                        }
+
+                        const ormHtml = `<span class="stat-1rm" id="orm-${setId}">${oneRM > 0 ? '🏆 1ПМ: ' + oneRM + 'кг' : ''}</span>`;
+                        
                         return `
                             <div class="set-row ${set.completed ? 'completed' : ''}" data-ex-index="${exIndex}" data-set-id="${setId}">
                                 <input type="checkbox" class="set-checkbox" ${set.completed ? 'checked disabled' : ''} 
                                        onchange="App.toggleSetInSuperset(${exIndex}, ${setIndex})">
                                 
-                                <div class="set-inputs-group">
-                                    <div class="set-input-wrapper">
-                                        <div class="input-label">Вес</div>
-                                        <input type="text" inputmode="decimal" class="set-input" 
-                                               value="${String(set.weight || 0).replace(',', '.')}" 
-                                               oninput="const val = UI.validateFloatInput(this); App.updateSetDataInSuperset(${exIndex}, ${setIndex}, 'weight', val)"
-                                               onfocus="this.select()"
-                                               ${set.completed ? 'disabled' : ''} placeholder="0">
+                                <div style="flex: 1; width: 100%;">
+                                    <div class="set-inputs-group">
+                                        <div class="set-input-wrapper">
+                                            <div class="input-label">Вес</div>
+                                            <input type="text" inputmode="decimal" class="set-input" 
+                                                   value="${String(set.weight || 0).replace(',', '.')}" 
+                                                   oninput="const val = UI.validateFloatInput(this); App.updateSetDataInSuperset(${exIndex}, ${setIndex}, 'weight', val)"
+                                                   onfocus="this.select()"
+                                                   ${set.completed ? 'disabled' : ''} placeholder="0">
+                                        </div>
+                                        <div class="set-input-wrapper">
+                                            <div class="input-label">Повт</div>
+                                            <input type="tel" inputmode="numeric" class="set-input" 
+                                                   value="${set.reps || 0}" 
+                                                   oninput="App.updateSetDataInSuperset(${exIndex}, ${setIndex}, 'reps', this.value)"
+                                                   onfocus="this.select()"
+                                                   ${set.completed ? 'disabled' : ''} placeholder="0">
+                                        </div>
+                                        <div class="set-input-wrapper">
+                                            <div class="input-label">Отд(м)</div>
+                                            <input type="text" inputmode="decimal" class="set-input" 
+                                                   value="${set.rest || 0}" 
+                                                   oninput="const val = UI.validateFloatInput(this); App.updateSetDataInSuperset(${exIndex}, ${setIndex}, 'rest', val)"
+                                                   onfocus="this.select()"
+                                                   ${set.completed ? 'disabled' : ''} placeholder="0" step="0.5">
+                                        </div>
                                     </div>
-                                    <div class="set-input-wrapper">
-                                        <div class="input-label">Повт</div>
-                                        <input type="tel" inputmode="numeric" class="set-input" 
-                                               value="${set.reps || 0}" 
-                                               oninput="App.updateSetDataInSuperset(${exIndex}, ${setIndex}, 'reps', this.value)"
-                                               onfocus="this.select()"
-                                               ${set.completed ? 'disabled' : ''} placeholder="0">
-                                    </div>
-                                    <div class="set-input-wrapper">
-                                        <div class="input-label">Отд(м)</div>
-                                        <input type="text" inputmode="decimal" class="set-input" 
-                                               value="${set.rest || 0}" 
-                                               oninput="const val = UI.validateFloatInput(this); App.updateSetDataInSuperset(${exIndex}, ${setIndex}, 'rest', val)"
-                                               onfocus="this.select()"
-                                               ${set.completed ? 'disabled' : ''} placeholder="0" step="0.5">
+                                    
+                                    <div class="stats-row">
+                                        ${ormHtml}
+                                        ${deltaHtml}
                                     </div>
                                 </div>
                                 
@@ -1814,6 +1912,31 @@
                 }
                 
                 this.toggleModal('infoModal', true);
+            },
+
+            // === Функции расчета микро-аналитики ===
+            calculate1RM(weight, reps) {
+                const w = parseFloat(weight) || 0;
+                const r = parseInt(reps) || 0;
+                if (w === 0 || r === 0) return 0;
+                if (r === 1) return w;
+                // Формула Эпли: Weight * (1 + Reps/30)
+                return Math.round(w * (1 + r / 30));
+            },
+
+            getDelta(current, prev) {
+                const curVal = parseFloat(current) || 0;
+                const prevVal = parseFloat(prev) || 0;
+                
+                if (prevVal === 0) return null; // Нет истории - нет дельты
+                
+                const diff = curVal - prevVal;
+                // Округляем до 1 знака, если дробное (например 2.5), иначе целое
+                const diffStr = Number.isInteger(diff) ? diff : diff.toFixed(1);
+                
+                if (diff > 0) return { text: `+${diffStr} кг`, class: 'positive' };
+                if (diff < 0) return { text: `${diffStr} кг`, class: 'negative' };
+                return { text: '0', class: 'neutral' };
             },
 
             validateFloatInput(input) {

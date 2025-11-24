@@ -255,34 +255,78 @@
         }
         
         /* --- MODALS (FIXED) --- */
+        /* Этот блок критически важен, чтобы окна были скрыты! */
         .modal, .modal-overlay {
-            display: none; /* ВАЖНО: Скрыто по умолчанию */
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);
-            z-index: 2000; justify-content: center; align-items: center; padding: 20px;
+            display: none; /* Скрыто по умолчанию */
+            position: fixed; 
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85); 
+            backdrop-filter: blur(5px);
+            z-index: 2000; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 20px;
         }
         
-        .modal.active, .modal-overlay.open { display: flex !important; }
+        /* Класс, который делает окно видимым */
+        .modal.active, .modal-overlay.open { 
+            display: flex !important; 
+        }
 
+        /* Стили карточки внутри модалки */
         .modal-card, .modal-content {
-            background: var(--card-bg); color: var(--text-color);
-            border-radius: 16px; width: 100%; max-width: 350px;
-            overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background: var(--card-bg); 
+            color: var(--text-color);
+            border-radius: 16px; 
+            width: 100%; 
+            max-width: 350px;
+            overflow: hidden; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-height: 90vh;
+            overflow-y: auto;
         }
+        
         .modal-header {
-            padding: 16px; border-bottom: 1px solid var(--separator);
-            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px; 
+            border-bottom: 1px solid var(--separator);
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
         }
-        .modal-title, h3 { margin: 0; font-size: 18px; font-weight: 600; }
-        .modal-close { background: none; border: none; color: var(--accent); font-size: 24px; cursor: pointer; line-height: 1; padding: 0; }
+        
+        .modal-title, h3 { 
+            margin: 0; 
+            font-size: 18px; 
+            font-weight: 600; 
+        }
+        
+        .modal-close { 
+            background: none; 
+            border: none; 
+            color: var(--accent); 
+            font-size: 24px; 
+            cursor: pointer; 
+            line-height: 1; 
+            padding: 0; 
+        }
+        
         .modal-body { padding: 20px; }
         
         .modal-img {
-            width: 100%; border-radius: 8px; margin-bottom: 15px;
-            object-fit: cover; background: var(--input-bg); min-height: 200px;
+            width: 100%; 
+            border-radius: 12px; 
+            margin-bottom: 15px; 
+            object-fit: cover; 
+            background: var(--input-bg); 
+            min-height: 200px;
         }
+        
         .modal-desc {
-            font-size: 15px; line-height: 1.5; color: var(--text-color); margin: 0; white-space: pre-wrap;
+            font-size: 15px; 
+            line-height: 1.5; 
+            color: var(--text-color); 
+            margin: 0; 
+            white-space: pre-wrap;
         }
         
         /* History styles */
@@ -1104,7 +1148,13 @@
             },
 
             updateNav(title, back = false, history = false) {
-                document.getElementById('navbarTitle').textContent = title;
+                // Если title пустой или 'GymApp', не показываем заголовок
+                const navTitle = document.getElementById('navbarTitle');
+                if (!title || title === 'GymApp' || title.trim() === '') {
+                    navTitle.textContent = '';
+                } else {
+                    navTitle.textContent = title;
+                }
                 document.getElementById('btnBack').classList.toggle('hidden', !back);
                 document.getElementById('btnHistory').classList.toggle('hidden', !history);
             },

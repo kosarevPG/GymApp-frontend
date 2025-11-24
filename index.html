@@ -376,6 +376,23 @@
         /* --- Utils --- */
         .loading { color: var(--text-secondary); text-align: center; margin-top: 40px; }
         .error { color: var(--danger); text-align: center; margin-top: 40px; }
+        
+        /* Скелетон-загрузка */
+        .loading-skeleton {
+            padding: 0 16px;
+        }
+        .skeleton-item {
+            height: 80px;
+            background: linear-gradient(90deg, var(--input-bg) 25%, rgba(255,255,255,0.1) 50%, var(--input-bg) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s ease-in-out infinite;
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+        @keyframes skeleton-loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
     </style>
 </head>
 <body>
@@ -551,40 +568,60 @@
         };
         
         const API = {
-            async request(endpoint, params = {}, method = 'GET', body = null) {
+            async request(endpoint, params = {}, method = 'GET', body = null, retries = 2) {
                 const url = new URL(`${CONFIG.BACKEND_URL}/api/${endpoint}`);
                 Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
                 
-                try {
-                    const opts = { 
-                        method, 
-                        headers: { 'Content-Type': 'application/json' },
-                        // Таймаут 30 секунд (для "просыпающегося" Render сервера)
-                        signal: AbortSignal.timeout(30000)
-                    };
-                    if (body) opts.body = JSON.stringify(body);
-                    
-                    console.log(`[API] Запрос: ${method} ${url}`);
-                    const res = await fetch(url, opts);
-                    
-                    if (!res.ok) {
-                        console.error(`[API] Ошибка HTTP: ${res.status} ${res.statusText}`);
-                        return { error: true, message: `HTTP ${res.status}` };
-                    }
-                    
-                    const data = await res.json();
-                    console.log(`[API] Ответ получен:`, data);
-                    return data;
-                } catch (e) {
-                    if (e.name === 'TimeoutError') {
-                        console.error("[API] Таймаут запроса (30 сек). Сервер не отвечает.");
-                        return { error: true, message: 'Таймаут. Сервер не отвечает. Попробуйте еще раз.' };
-                    } else if (e.name === 'TypeError' && e.message.includes('Failed to fetch')) {
-                        console.error("[API] Не удалось подключиться к серверу:", CONFIG.BACKEND_URL);
-                        return { error: true, message: 'Не удалось подключиться к серверу. Проверьте адрес.' };
-        } else {
-                        console.error("[API] Ошибка:", e);
-                        return { error: true, message: e.message || 'Неизвестная ошибка' };
+                for (let attempt = 0; attempt <= retries; attempt++) {
+                    try {
+                        const opts = { 
+                            method, 
+                            headers: { 'Content-Type': 'application/json' },
+                            // Таймаут 15 секунд (уменьшен с 30)
+                            signal: AbortSignal.timeout(15000)
+                        };
+                        if (body) opts.body = JSON.stringify(body);
+                        
+                        const startTime = performance.now();
+                        console.log(`[API] Запрос (попытка ${attempt + 1}/${retries + 1}): ${method} ${url}`);
+                        
+                        const res = await fetch(url, opts);
+                        const duration = Math.round(performance.now() - startTime);
+                        
+                        if (!res.ok) {
+                            console.error(`[API] Ошибка HTTP: ${res.status} ${res.statusText} (${duration}ms)`);
+                            if (attempt < retries && res.status >= 500) {
+                                // Retry для серверных ошибок
+                                await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); // Экспоненциальная задержка
+                                continue;
+                            }
+                            return { error: true, message: `HTTP ${res.status}` };
+                        }
+                        
+                        const data = await res.json();
+                        console.log(`[API] Ответ получен за ${duration}ms:`, data);
+                        return data;
+                    } catch (e) {
+                        const isLastAttempt = attempt === retries;
+                        
+                        if (e.name === 'TimeoutError') {
+                            console.error(`[API] Таймаут запроса (15 сек). Попытка ${attempt + 1}/${retries + 1}`);
+                            if (!isLastAttempt) {
+                                await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+                                continue;
+                            }
+                            return { error: true, message: 'Таймаут. Сервер не отвечает. Попробуйте еще раз.' };
+                        } else if (e.name === 'TypeError' && e.message.includes('Failed to fetch')) {
+                            console.error(`[API] Не удалось подключиться к серверу. Попытка ${attempt + 1}/${retries + 1}`);
+                            if (!isLastAttempt) {
+                                await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+                                continue;
+                            }
+                            return { error: true, message: 'Не удалось подключиться к серверу. Проверьте адрес.' };
+                        } else {
+                            console.error("[API] Ошибка:", e);
+                            return { error: true, message: e.message || 'Неизвестная ошибка' };
+                        }
                     }
                 }
             },
@@ -681,25 +718,49 @@
             },
 
             init() {
-                // Event Listeners
-                document.getElementById('btnBack').onclick = () => App.goBack();
-                document.getElementById('btnHistory').onclick = () => App.loadHistory();
-                document.getElementById('btnAddSet').onclick = () => App.addSetRow();
-                document.getElementById('timerStartBtn').onclick = () => Timer.toggle();
-                document.getElementById('timerResetBtn').onclick = () => Timer.reset();
-                document.getElementById('closeHistoryBtn').onclick = () => UI.toggleModal('modalHistory', false);
-                document.getElementById('closeInfoBtn').onclick = () => UI.toggleModal('infoModal', false);
+                // Event Listeners (с проверкой существования элементов)
+                const btnBack = document.getElementById('btnBack');
+                if (btnBack) btnBack.onclick = () => App.goBack();
+                
+                const btnHistory = document.getElementById('btnHistory');
+                if (btnHistory) btnHistory.onclick = () => App.loadHistory();
+                
+                const btnAddSet = document.getElementById('btnAddSet');
+                if (btnAddSet) btnAddSet.onclick = () => App.addSetRow();
+                
+                const timerStartBtn = document.getElementById('timerStartBtn');
+                if (timerStartBtn) timerStartBtn.onclick = () => Timer.toggle();
+                
+                const timerResetBtn = document.getElementById('timerResetBtn');
+                if (timerResetBtn) timerResetBtn.onclick = () => Timer.reset();
+                
+                const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+                if (closeHistoryBtn) closeHistoryBtn.onclick = () => UI.toggleModal('modalHistory', false);
+                
+                const closeInfoBtn = document.getElementById('closeInfoBtn');
+                if (closeInfoBtn) closeInfoBtn.onclick = () => UI.toggleModal('infoModal', false);
                 
                 // Закрытие модалок по клику на фон
-                document.getElementById('modalHistory').onclick = (e) => {
-                    if (e.target.id === 'modalHistory') UI.toggleModal('modalHistory', false);
-                };
-                document.getElementById('infoModal').onclick = (e) => {
-                    if (e.target.id === 'infoModal') UI.toggleModal('infoModal', false);
-                };
-                document.getElementById('modalAddExercise').onclick = (e) => {
-                    if (e.target.id === 'modalAddExercise') UI.toggleModal('modalAddExercise', false);
-                };
+                const modalHistory = document.getElementById('modalHistory');
+                if (modalHistory) {
+                    modalHistory.onclick = (e) => {
+                        if (e.target.id === 'modalHistory') UI.toggleModal('modalHistory', false);
+                    };
+                }
+                
+                const infoModal = document.getElementById('infoModal');
+                if (infoModal) {
+                    infoModal.onclick = (e) => {
+                        if (e.target.id === 'infoModal') UI.toggleModal('infoModal', false);
+                    };
+                }
+                
+                const modalAddExercise = document.getElementById('modalAddExercise');
+                if (modalAddExercise) {
+                    modalAddExercise.onclick = (e) => {
+                        if (e.target.id === 'modalAddExercise') UI.toggleModal('modalAddExercise', false);
+                    };
+                }
 
                 // === ЛОГИКА СЧЕТЧИКА И СЕССИИ ===
                 const savedSession = localStorage.getItem('gym_session_id');
@@ -755,10 +816,45 @@
                 }
             },
 
+            // Кэширование в localStorage с TTL
+            _getCachedGroups() {
+                try {
+                    const cached = localStorage.getItem('gym_groups_cache');
+                    if (!cached) return null;
+                    
+                    const { data, timestamp } = JSON.parse(cached);
+                    const now = Date.now();
+                    const TTL = 5 * 60 * 1000; // 5 минут
+                    
+                    if (now - timestamp < TTL) {
+                        console.log('[App] Группы загружены из кэша');
+                        return data;
+                    } else {
+                        localStorage.removeItem('gym_groups_cache');
+                        return null;
+                    }
+                } catch (e) {
+                    console.warn('[App] Ошибка чтения кэша:', e);
+                    return null;
+                }
+            },
+            
+            _saveGroupsToCache(groups) {
+                try {
+                    localStorage.setItem('gym_groups_cache', JSON.stringify({
+                        data: groups,
+                        timestamp: Date.now()
+                    }));
+                } catch (e) {
+                    console.warn('[App] Ошибка сохранения кэша:', e);
+                }
+            },
+            
             async loadGroups() {
                 const listEl = document.getElementById('groups-list');
+                if (!listEl) return;
                 
-                // Если есть кэш групп - показываем сразу
+                // 1. Проверяем кэш в памяти
                 if (this.state.groupsCache) {
                     UI.renderGroups(this.state.groupsCache);
                     // Фоновая загрузка всех упражнений для будущего поиска
@@ -766,19 +862,49 @@
                     return;
                 }
                 
+                // 2. Проверяем localStorage кэш (показываем мгновенно)
+                const cachedGroups = this._getCachedGroups();
+                if (cachedGroups) {
+                    this.state.groupsCache = cachedGroups;
+                    UI.renderGroups(cachedGroups);
+                    // Фоновая загрузка всех упражнений
+                    setTimeout(() => this.ensureExercisesLoaded(), 1000);
+                    
+                    // Обновляем в фоне (без показа лоадера)
+                    this._loadGroupsInBackground();
+                    return;
+                }
+                
+                // 3. Нет кэша - показываем лоадер и загружаем
                 UI.renderLoading('groups-list');
+                await this._loadGroupsInBackground(true);
+            },
+            
+            async _loadGroupsInBackground(showLoader = false) {
+                const listEl = document.getElementById('groups-list');
+                const startTime = performance.now();
                 
                 try {
-                    console.log('[App] Загрузка групп мышц...');
+                    console.log('[App] Загрузка групп мышц с сервера...');
                     const res = await API.getGroups();
+                    const duration = Math.round(performance.now() - startTime);
                     
                     if (res.error) {
-                        console.error('[App] Ошибка загрузки групп:', res.message);
-                        listEl.innerHTML = `<div class="error">
-                            <div>❌ Ошибка загрузки</div>
-                            <div style="font-size: 12px; margin-top: 8px; color: #888;">${res.message || 'Проверьте подключение к интернету'}</div>
-                            <button onclick="App.loadGroups()" style="margin-top: 12px; padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer;">Повторить</button>
-                        </div>`;
+                        console.error(`[App] Ошибка загрузки групп (${duration}ms):`, res.message);
+                        
+                        // Если есть кэш, показываем его даже при ошибке
+                        const cachedGroups = this._getCachedGroups();
+                        if (cachedGroups && !showLoader) {
+                            return; // Уже показали кэш
+                        }
+                        
+                        if (listEl) {
+                            listEl.innerHTML = `<div class="error">
+                                <div>❌ Ошибка загрузки</div>
+                                <div style="font-size: 12px; margin-top: 8px; color: #888;">${res.message || 'Проверьте подключение к интернету'}</div>
+                                <button onclick="App.loadGroups()" style="margin-top: 12px; padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer;">Повторить</button>
+                            </div>`;
+                        }
                         return;
                     }
                     
@@ -786,22 +912,34 @@
                     const groups = fixDoubleSerialization(res.groups);
                     
                     if (groups && Array.isArray(groups) && groups.length > 0) {
-                        console.log(`[App] Загружено групп: ${groups.length}`);
-                        this.state.groupsCache = groups; // Сохраняем в кэш
-                        UI.renderGroups(groups);
+                        console.log(`[App] Загружено групп: ${groups.length} за ${duration}ms`);
+                        
+                        // Сохраняем в кэш (память и localStorage)
+                        this.state.groupsCache = groups;
+                        this._saveGroupsToCache(groups);
+                        
+                        // Обновляем UI только если показывали лоадер
+                        if (showLoader && listEl) {
+                            UI.renderGroups(groups);
+                        }
                         
                         // Фоновая загрузка всех упражнений для будущего поиска
                         setTimeout(() => this.ensureExercisesLoaded(), 1000);
                     } else {
                         console.warn('[App] Группы не найдены');
-                        listEl.innerHTML = '<div class="error">Группы не найдены</div>';
+                        if (listEl && showLoader) {
+                            listEl.innerHTML = '<div class="error">Группы не найдены</div>';
+                        }
                     }
                 } catch (e) {
-                    console.error('[App] Критическая ошибка:', e);
-                    listEl.innerHTML = `<div class="error">
-                        <div>❌ Критическая ошибка</div>
-                        <div style="font-size: 12px; margin-top: 8px; color: #888;">${e.message}</div>
-                    </div>`;
+                    const duration = Math.round(performance.now() - startTime);
+                    console.error(`[App] Критическая ошибка (${duration}ms):`, e);
+                    if (listEl && showLoader) {
+                        listEl.innerHTML = `<div class="error">
+                            <div>❌ Критическая ошибка</div>
+                            <div style="font-size: 12px; margin-top: 8px; color: #888;">${e.message}</div>
+                        </div>`;
+                    }
                 }
             },
             

@@ -1402,14 +1402,10 @@
                 if (!App.allExercisesCache || App.allExercisesCache.length === 0) {
                     // Запускаем загрузку всего (покажем лоадер)
                     list.innerHTML = '<div class="loading">Ищу упражнения...</div>';
-                    App.loadAllExercises(true).then(() => {
-                        // После загрузки снова вызываем фильтрацию
-                        if (query.toLowerCase().trim() === q) {
-                            UI.filterGlobal(query);
-                        }
-                    });
-                        return;
-                    }
+                    // loadAllExercises(true) автоматически вызовет filterGlobal после загрузки
+                    App.loadAllExercises(true);
+                    return;
+                }
                 
                 // Фильтруем кэш упражнений по названию
                 const filtered = App.allExercisesCache.filter(ex => {

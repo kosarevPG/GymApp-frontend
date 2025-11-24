@@ -9,32 +9,44 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
     <style>
-        * {
+        :root {
+            --bg-color: #000000;
+            --card-bg: #1c1c1e;
+            --text-color: #ffffff;
+            --text-secondary: #8e8e93;
+            --accent: #0a84ff; /* Синий как в iOS */
+            --separator: #38383a;
+            --danger: #ff453a;
+            --success: #30d158;
+        }
+
+        * { 
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent; 
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
-            overflow-x: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0; 
+            padding-bottom: 40px;
             touch-action: manipulation;
         }
         
         /* Navbar */
         .navbar {
-            background: white;
-            padding: 12px 16px;
+            background: var(--bg-color);
+            padding: 10px 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             position: sticky;
             top: 0;
             z-index: 100;
+            border-bottom: 1px solid var(--separator);
         }
         
         .navbar-left {
@@ -44,9 +56,9 @@
         .navbar-center {
             flex: 1;
             text-align: center;
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 600;
-            color: #333;
+            color: var(--text-color);
         }
         
         .navbar-right {
@@ -60,12 +72,12 @@
             padding: 8px 12px;
             font-size: 16px;
             cursor: pointer;
-            color: #667eea;
+            color: var(--accent);
             font-weight: 600;
         }
         
         .btn-nav:active {
-            opacity: 0.7;
+            opacity: 0.6;
         }
         
         .btn-nav.hidden {
@@ -74,26 +86,112 @@
         
         /* Container */
         .container {
-            max-width: 420px;
-            margin: 0 auto;
-            padding: 20px;
+            padding: 0; /* Убрали отступы, чтобы списки были на всю ширину */
         }
         
         /* Screen */
         .screen {
             display: none;
+            padding-bottom: 80px;
         }
         
         .screen.active {
             display: block;
+            animation: fadeIn 0.2s;
         }
         
-        /* Screen 1 & 2: Groups and Exercises */
-        .list-grid {
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* Search Bar */
+        .search-wrapper {
+            padding: 10px 16px;
+            background: var(--bg-color);
+            position: sticky;
+            top: 45px; /* Высота навбара */
+            z-index: 90;
+        }
+        
+        .search-input {
+            width: 100%;
+            background: var(--card-bg);
+            border: none;
+            border-radius: 10px;
+            padding: 10px 12px 10px 36px; /* Отступ слева под иконку */
+            color: var(--text-color);
+            font-size: 16px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: 10px center;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            background-color: #2c2c2e;
+        }
+        
+        /* List Styles (iOS style) */
+        .list-container {
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            margin-top: 20px;
+            padding: 0 16px;
+        }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            cursor: pointer;
+            border-bottom: 1px solid var(--separator);
+        }
+        
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        
+        .list-item:active {
+            opacity: 0.6;
+        }
+
+        /* Картинка в списке */
+        .list-img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 4px;
+            background: #333;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        
+        /* Если картинки нет, показываем заглушку */
+        .list-img.placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            background: #2c2c2e;
+            color: #555;
+        }
+
+        .list-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .list-title {
+            font-size: 17px;
+            font-weight: 500;
+            color: var(--text-color);
+        }
+        
+        .list-arrow {
+            color: var(--text-secondary);
+            font-size: 14px;
         }
         
         .groups-container {
@@ -101,107 +199,43 @@
             flex-direction: column;
         }
         
-        .groups-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-top: 20px;
-        }
-        
-        .group-pair-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-        
-        .group-pair-item {
-            background: white;
-            padding: 12px 16px;
-            border-radius: 10px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .group-pair-item:active {
-            transform: scale(0.98);
-            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-            background: #f5f5f5;
-        }
-        
-        .group-pair-item h3 {
-            font-size: 15px;
-            font-weight: 500;
-            color: #333;
-            margin: 0;
-        }
-        
         .groups-footer {
-            margin-top: 20px;
+            padding: 20px 16px;
             display: flex;
             justify-content: center;
         }
         
         .btn-all {
-            background: #667eea;
+            background: var(--accent);
             color: white;
             border: none;
             padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 14px;
+            border-radius: 10px;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             width: 100%;
             max-width: 200px;
         }
         
         .btn-all:active {
-            background: #5568d3;
-            transform: scale(0.98);
-        }
-        
-        .list-item {
-            background: white;
-            padding: 12px 16px;
-            border-radius: 10px;
-            text-align: left;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .list-item:active {
-            transform: scale(0.98);
-            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-            background: #f5f5f5;
-        }
-        
-        .list-item h3 {
-            font-size: 15px;
-            font-weight: 500;
-            color: #333;
-            margin: 0;
+            opacity: 0.7;
         }
         
         /* Screen 3: Workout */
         .workout-container {
-            background: white;
+            background: var(--card-bg);
             border-radius: 16px;
             padding: 12px;
-            margin-top: 12px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            margin: 12px 16px;
         }
         
         /* Карточка таймера */
         .timer-card {
-            background: #ffffff;
+            background: var(--card-bg);
             border-radius: 16px;
             padding: 15px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -211,8 +245,8 @@
         .timer-display {
             font-size: 32px;
             font-weight: 700;
-            font-variant-numeric: tabular-nums; /* Чтобы цифры не скакали при смене */
-            color: #333;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-color);
             letter-spacing: 1px;
         }
         
@@ -234,18 +268,18 @@
         
         /* Стиль кнопки Старт/Стоп */
         .timer-btn.start {
-            background-color: #eef2ff;
-            color: #667eea;
+            background-color: #2c2c2e;
+            color: var(--accent);
         }
-        .timer-btn.start.active { /* Когда таймер идет */
-            background-color: #ffebee;
-            color: #ef5350;
+        .timer-btn.start.active {
+            background-color: #2c2c2e;
+            color: var(--danger);
         }
         
         /* Стиль кнопки Сброс */
         .timer-btn.reset {
-            background-color: #f5f5f5;
-            color: #888;
+            background-color: #2c2c2e;
+            color: var(--text-secondary);
         }
         
         .set-row {
@@ -254,28 +288,31 @@
             gap: 8px;
             padding: 10px;
             margin-bottom: 8px;
-            background: #f9f9f9;
+            background: #000;
             border-radius: 8px;
-            border: 2px solid transparent;
+            border: 1px solid var(--separator);
             transition: all 0.3s;
+            flex-wrap: wrap;
+            padding-bottom: 8px;
         }
         
         .set-row.completed {
-            background: #e8f5e9;
-            border-color: #4caf50;
+            background: #1a2e1a;
+            border-color: var(--success);
             opacity: 0.8;
         }
         
         .set-row.completed input {
-            background: #c8e6c9;
-            color: #2e7d32;
+            background: #0d1a0d;
+            color: var(--success);
         }
         
         .set-checkbox {
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             cursor: pointer;
             flex-shrink: 0;
+            accent-color: var(--success);
         }
         
         .set-inputs-group {
@@ -283,6 +320,7 @@
             display: flex;
             gap: 6px;
             align-items: center;
+            flex-wrap: wrap;
         }
         
         .set-input-wrapper {
@@ -295,11 +333,12 @@
         .set-input {
             width: 100%;
             padding: 8px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--separator);
             border-radius: 6px;
             font-size: 14px;
             text-align: center;
-            background: white;
+            background: #000;
+            color: var(--text-color);
             -webkit-appearance: none;
             -moz-appearance: textfield;
             appearance: none;
@@ -316,18 +355,18 @@
         
         .set-input:focus {
             outline: none;
-            border-color: #667eea;
-            background: #fff;
+            border-color: var(--accent);
+            background: #000;
         }
         
         .set-input:disabled {
-            background: #f5f5f5;
+            background: #0a0a0a;
             cursor: not-allowed;
             opacity: 0.6;
         }
         
         .set-remove {
-            background: #ff5252;
+            background: var(--danger);
             color: white;
             border: none;
             width: 28px;
@@ -343,7 +382,7 @@
         }
         
         .set-remove:active {
-            background: #d32f2f;
+            opacity: 0.7;
         }
         
         .set-remove.hidden {
@@ -353,7 +392,7 @@
         .btn-add-set {
             width: 100%;
             padding: 12px;
-            background: #667eea;
+            background: var(--accent);
             color: white;
             border: none;
             border-radius: 8px;
@@ -364,12 +403,12 @@
         }
         
         .btn-add-set:active {
-            background: #5568d3;
+            opacity: 0.7;
         }
         
         .input-label {
             font-size: 10px;
-            color: #666;
+            color: var(--text-secondary);
             text-align: center;
             margin: 0;
         }
@@ -382,7 +421,8 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
             z-index: 1000;
             align-items: center;
             justify-content: center;
@@ -394,7 +434,8 @@
         }
         
         .modal-content {
-            background: white;
+            background: var(--card-bg);
+            color: var(--text-color);
             border-radius: 20px;
             padding: 24px;
             max-width: 400px;
@@ -413,6 +454,7 @@
         .modal-title {
             font-size: 20px;
             font-weight: 600;
+            color: var(--text-color);
         }
         
         .modal-close {
@@ -420,20 +462,20 @@
             border: none;
             font-size: 24px;
             cursor: pointer;
-            color: #666;
+            color: var(--text-secondary);
         }
         
         .history-item {
             padding: 16px;
             margin-bottom: 12px;
-            background: #f9f9f9;
+            background: var(--card-bg);
             border-radius: 12px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid var(--accent);
         }
         
         .history-date {
             font-size: 14px;
-            color: #999;
+            color: var(--text-secondary);
             margin-bottom: 8px;
         }
         
@@ -445,22 +487,22 @@
         
         .history-set {
             font-size: 16px;
-            color: #333;
+            color: var(--text-color);
         }
         
         /* Компактная карточка истории */
         .history-group-card {
-            background: #f8f9fa;
+            background: var(--card-bg);
             border-radius: 12px;
             padding: 12px;
             margin-bottom: 12px;
-            border-left: 4px solid #667eea; /* Цветной акцент слева */
+            border-left: 4px solid var(--accent);
         }
         
         .history-date-header {
             font-size: 14px;
             font-weight: 700;
-            color: #333;
+            color: var(--text-color);
             margin-bottom: 8px;
             display: flex;
             justify-content: space-between;
@@ -470,15 +512,15 @@
         .history-sets-list {
             display: flex;
             flex-direction: column;
-            gap: 4px; /* Маленький отступ между подходами */
+            gap: 4px;
         }
         
         .history-set-row {
             font-size: 15px;
-            color: #444;
+            color: var(--text-color);
             display: flex;
             justify-content: space-between;
-            border-bottom: 1px dashed #e0e0e0;
+            border-bottom: 1px dashed var(--separator);
             padding-bottom: 2px;
         }
         
@@ -488,27 +530,26 @@
         
         .history-rest {
             font-size: 12px;
-            color: #888;
+            color: var(--text-secondary);
             margin-left: 8px;
         }
         
         /* Стили для суперсета в истории */
         .history-superset-card {
-            background: #fff;
-            border: 1px solid #e0e0e0;
+            background: var(--card-bg);
+            border: 1px solid var(--separator);
             border-radius: 12px;
             margin-bottom: 12px;
             overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
         }
         
         .history-superset-header {
-            background: #f8f9fa;
+            background: #2c2c2e;
             padding: 8px 12px;
             font-size: 13px;
             font-weight: 600;
-            color: #667eea;
-            border-bottom: 1px solid #eee;
+            color: var(--accent);
+            border-bottom: 1px solid var(--separator);
             display: flex;
             align-items: center;
             gap: 6px;
@@ -516,7 +557,7 @@
         
         /* Метка "Суперсет" */
         .badge-superset {
-            background: #667eea;
+            background: var(--accent);
             color: white;
             font-size: 10px;
             padding: 2px 6px;
@@ -526,27 +567,26 @@
         
         .history-item-row {
             padding: 8px 12px;
-            border-bottom: 1px dashed #eee;
+            border-bottom: 1px dashed var(--separator);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         .history-item-row:last-child { border-bottom: none; }
         
-        .history-ex-name { font-size: 12px; color: #888; margin-bottom: 2px; }
-        .history-ex-vals { font-size: 14px; color: #333; font-weight: 500; }
+        .history-ex-name { font-size: 12px; color: var(--text-secondary); margin-bottom: 2px; }
+        .history-ex-vals { font-size: 14px; color: var(--text-color); font-weight: 500; }
         
         /* --- Стили для Суперсетов (Новые) --- */
         
         /* Блок упражнения в суперсете */
         .exercise-card {
-            background: white;
+            background: var(--card-bg);
             border-radius: 16px;
             padding: 16px;
-            margin-bottom: 16px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            margin: 16px;
             position: relative;
-            border: 1px solid #f0f0f0;
+            border: 1px solid var(--separator);
         }
         
         .exercise-header {
@@ -555,19 +595,19 @@
             align-items: center;
             margin-bottom: 12px;
             padding-bottom: 8px;
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid var(--separator);
         }
         
         .exercise-title {
             font-size: 17px;
             font-weight: 700;
-            color: #333;
+            color: var(--text-color);
         }
         
         /* Кнопка удаления упражнения (красный крестик) */
         .btn-remove-exercise {
-            background: #fff0f0;
-            color: #ff3b30;
+            background: #2c1a1a;
+            color: var(--danger);
             border: none;
             border-radius: 8px;
             padding: 6px 10px;
@@ -580,8 +620,8 @@
         .btn-add-set-small {
             width: 100%;
             padding: 10px;
-            background: #f0f2f5;
-            color: #667eea;
+            background: #2c2c2e;
+            color: var(--accent);
             border: none;
             border-radius: 10px;
             font-weight: 600;
@@ -591,30 +631,28 @@
             transition: background 0.2s;
         }
         .btn-add-set-small:active {
-            background: #e4e6eb;
+            background: #38383a;
         }
         
         /* Глобальная кнопка добавления упражнения */
         .btn-add-exercise-global {
             width: 100%;
             padding: 14px;
-            background: white;
-            color: #667eea;
-            border: 2px dashed #667eea; /* Пунктирная обводка */
+            background: var(--card-bg);
+            color: var(--accent);
+            border: 2px dashed var(--accent);
             border-radius: 16px;
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 10px;
-            margin-bottom: 40px; /* Отступ снизу */
+            margin: 10px 16px 40px 16px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
         }
         .btn-add-exercise-global:active {
-            background: #f8f9fa;
-            opacity: 0.8;
+            opacity: 0.7;
         }
         
         /* --- Микро-аналитика --- */
@@ -657,14 +695,14 @@
         
         /* Поле для заметок */
         .note-wrapper {
-            background: #fff9c4; /* Светло-желтый, как стикер */
+            background: #2c2c1a;
             padding: 8px 12px;
             border-radius: 8px;
-            margin: 0 0 12px 0; /* Отступы как у карточки */
+            margin: 0 0 12px 0;
             display: flex;
             align-items: center;
             gap: 8px;
-            border: 1px solid #fbc02d;
+            border: 1px solid #4a4a2a;
         }
         
         .note-icon {
@@ -676,40 +714,40 @@
             background: transparent;
             width: 100%;
             font-size: 14px;
-            color: #333;
+            color: var(--text-color);
             outline: none;
         }
         .note-input::placeholder {
-            color: #9e9e9e;
+            color: var(--text-secondary);
         }
         
         .loading {
             text-align: center;
             padding: 40px;
-            color: white;
+            color: var(--text-secondary);
             font-size: 16px;
         }
         
         .error {
-            background: #ffebee;
-            border: 2px solid #f44336;
+            background: #2c1a1a;
+            border: 2px solid var(--danger);
             border-radius: 12px;
             padding: 16px;
             margin: 20px;
-            color: #c62828;
+            color: var(--danger);
             text-align: center;
         }
         
         /* Модальное окно для справочника */
         .modal-overlay {
-            display: none; /* Скрыто по умолчанию */
+            display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.5); /* Затемнение */
+            background: rgba(0, 0, 0, 0.8);
             z-index: 1000;
             justify-content: center;
             align-items: center;
-            backdrop-filter: blur(3px); /* Размытие фона (iOS style) */
+            backdrop-filter: blur(5px);
         }
         
         .modal-overlay.open {
@@ -717,18 +755,13 @@
             animation: fadeIn 0.2s;
         }
         
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
         .modal-card {
-            background: white;
+            background: var(--card-bg);
+            color: var(--text-color);
             width: 90%;
             max-width: 400px;
             border-radius: 20px;
             padding: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
             position: relative;
             max-height: 85vh;
             overflow-y: auto;
@@ -745,6 +778,7 @@
             margin: 0;
             font-size: 18px;
             font-weight: 700;
+            color: var(--text-color);
         }
         
         .modal-card .modal-close {
@@ -752,7 +786,7 @@
             border: none;
             font-size: 24px;
             cursor: pointer;
-            color: #888;
+            color: var(--text-secondary);
             padding: 0;
             width: 30px;
             height: 30px;
@@ -771,22 +805,22 @@
             border-radius: 12px;
             margin-bottom: 15px;
             object-fit: cover;
-            background: #f0f0f0;
+            background: #2c2c2e;
             min-height: 200px;
         }
         
         .modal-desc {
             font-size: 15px;
             line-height: 1.5;
-            color: #444;
-            white-space: pre-wrap; /* Сохраняет абзацы */
+            color: var(--text-color);
+            white-space: pre-wrap;
             margin: 0;
         }
         
         /* Кнопка Info в списке */
         .info-btn {
-            background: #eef2ff;
-            color: #667eea;
+            background: #2c2c2e;
+            color: var(--accent);
             border: none;
             width: 36px;
             height: 36px;
@@ -795,7 +829,7 @@
             font-size: 18px;
             margin-left: 10px;
             cursor: pointer;
-            flex-shrink: 0; /* Чтобы не сжималась */
+            flex-shrink: 0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -803,14 +837,9 @@
         }
         
         .info-btn:active {
-            background: #667eea;
+            background: var(--accent);
             color: white;
             transform: scale(0.95);
-        }
-        
-        .list-item {
-            display: flex;
-            align-items: center;
         }
     </style>
 </head>
@@ -834,6 +863,11 @@
         
         <!-- Screen 2: Exercises -->
         <div id="screen-exercises" class="screen">
+            <div class="search-wrapper">
+                <input type="text" id="searchExercises" class="search-input" 
+                       placeholder="Поиск" autocomplete="off" 
+                       oninput="UI.filterExercises(this.value)">
+            </div>
             <div id="exercises-list" class="loading">Загрузка упражнений...</div>
         </div>
         
@@ -1579,6 +1613,22 @@
                 document.getElementById(id).innerHTML = '<div class="loading">Загрузка...</div>';
             },
 
+            // Маппинг картинок для групп
+            getGroupImage(groupName) {
+                const map = {
+                    'Грудь': 'img/chest.png', 
+                    'Спина': 'img/back.png',
+                    'Ноги': 'img/legs.png',
+                    'Плечи': 'img/shoulders.png',
+                    'Руки': 'img/arms.png',
+                    'Бицепс': 'img/biceps.png',
+                    'Трицепс': 'img/triceps.png',
+                    'Кардио': 'img/cardio.png',
+                    'Пресс': 'img/abs.png'
+                };
+                return map[groupName] || null;
+            },
+
             renderGroups(groups) {
                 const container = document.getElementById('groups-list');
                 // Сортируем группы в нужном порядке
@@ -1586,43 +1636,78 @@
                 const sortedGroups = order.filter(g => groups.includes(g))
                     .concat(groups.filter(g => !order.includes(g)));
                 
-                // Динамически группируем по 2
-                let html = '<div class="groups-container"><div class="groups-grid">';
-                for (let i = 0; i < sortedGroups.length; i += 2) {
-                    html += '<div class="group-pair-row">';
-                    html += `<div class="group-pair-item" onclick="App.selectGroup('${sortedGroups[i].replace(/'/g, "\\'")}')"><h3>${sortedGroups[i]}</h3></div>`;
-                    if (sortedGroups[i + 1]) {
-                        html += `<div class="group-pair-item" onclick="App.selectGroup('${sortedGroups[i + 1].replace(/'/g, "\\'")}')"><h3>${sortedGroups[i + 1]}</h3></div>`;
-                    } else {
-                        html += '<div class="group-pair-item" style="opacity: 0.5; cursor: default;"><h3>—</h3></div>';
-                    }
-                    html += '</div>';
-                }
-                html += '</div><div class="groups-footer"><button class="btn-all" onclick="App.loadAllExercises()">Все</button></div></div>';
-                container.innerHTML = html;
+                // Рендерим как список (как на скрине)
+                const html = sortedGroups.map(group => {
+                    const imgSrc = this.getGroupImage(group);
+                    // Если есть картинка - ставим img, иначе заглушку (первая буква)
+                    const imgBlock = imgSrc 
+                        ? `<img src="${imgSrc}" class="list-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                           <div class="list-img placeholder" style="display:none;">${group[0]}</div>`
+                        : `<div class="list-img placeholder">${group[0]}</div>`;
+
+                    return `
+                        <div class="list-item" onclick="App.selectGroup('${group.replace(/'/g, "\\'")}')">
+                            ${imgBlock}
+                            <div class="list-content">
+                                <span class="list-title">${group}</span>
+                                <span class="list-arrow">›</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = `<div class="list-container">${html}</div><div class="groups-footer"><button class="btn-all" onclick="App.loadAllExercises()">Все упражнения</button></div>`;
             },
 
             renderExercises(list) {
                 const container = document.getElementById('exercises-list');
-                container.innerHTML = '<div class="list-grid">' +
-                    list.map(ex => {
-                        const exerciseName = typeof ex === 'string' ? ex : ex.name;
-                        const exerciseDesc = typeof ex === 'object' ? (ex.desc || 'Описание отсутствует') : '';
-                        const exerciseImage = typeof ex === 'object' ? (ex.image || '') : '';
-                        
-                        const safeName = exerciseName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                        const safeDesc = exerciseDesc.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, '\\n');
-                        const safeImage = exerciseImage.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                        
-                        return `
-                            <div class="list-item">
-                                <div style="flex-grow: 1; cursor: pointer;" onclick='App.selectExercise(${JSON.stringify(ex)})'>
-                                    <h3>${exerciseName}</h3>
+                
+                if (!list || list.length === 0) {
+                    container.innerHTML = '<div class="loading">Ничего не найдено</div>';
+                    return;
+                }
+
+                const html = list.map(ex => {
+                    const name = typeof ex === 'string' ? ex : ex.name;
+                    // Берем картинку из объекта упражнения (Image_URL из таблицы)
+                    const image = (typeof ex === 'object' && ex.image) ? ex.image : null;
+                    
+                    const imgBlock = image 
+                        ? `<img src="${image}" class="list-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                           <div class="list-img placeholder" style="display:none; background:#222">🏋️</div>`
+                        : `<div class="list-img placeholder" style="background:#222">🏋️</div>`;
+
+                    return `
+                        <div class="list-item exercise-item" data-name="${name.toLowerCase()}">
+                            ${imgBlock}
+                            <div class="list-content">
+                                <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
+                                    <span class="list-title" onclick='App.selectExercise(${JSON.stringify(ex)})'>${name}</span>
                                 </div>
-                                <button class="info-btn" onclick='UI.showInfo(${JSON.stringify(ex)})'>i</button>
+                                <button class="info-btn" onclick='UI.showInfo(${JSON.stringify(ex)})' style="padding:10px;">
+                                    ℹ️
+                                </button>
                             </div>
-                        `;
-                    }).join('') + '</div>';
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = `<div class="list-container">${html}</div>`;
+            },
+
+            // Логика Поиска (Фильтрация на лету)
+            filterExercises(query) {
+                const q = query.toLowerCase();
+                const items = document.querySelectorAll('.exercise-item');
+                
+                items.forEach(item => {
+                    const name = item.getAttribute('data-name');
+                    if (name.includes(q)) {
+                        item.style.display = 'flex';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
             },
 
             renderSets(sets) {

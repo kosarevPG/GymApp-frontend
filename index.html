@@ -668,7 +668,8 @@
                 activeExercises: [], // Новая структура для суперсетов: [{name: "...", sets: [...]}]
                 sessionId: null, // UUID сессии для связывания упражнений в суперсет
                 orderCounter: 0, // Счетчик порядка выполнения подходов
-                isSaving: false // Защита от дублирования записей при быстрых кликах
+                isSaving: false, // Защита от дублирования записей при быстрых кликах
+                groupsCache: null // Кэш групп мышц
             },
 
             init() {
@@ -740,6 +741,15 @@
 
             async loadGroups() {
                 const listEl = document.getElementById('groups-list');
+                
+                // Если есть кэш групп - показываем сразу
+                if (this.state.groupsCache) {
+                    UI.renderGroups(this.state.groupsCache);
+                    // Фоновая загрузка всех упражнений для будущего поиска
+                    setTimeout(() => this.ensureExercisesLoaded(), 1000);
+                    return;
+                }
+                
                 UI.renderLoading('groups-list');
                 
                 try {
@@ -753,7 +763,7 @@
                             <div style="font-size: 12px; margin-top: 8px; color: #888;">${res.message || 'Проверьте подключение к интернету'}</div>
                             <button onclick="App.loadGroups()" style="margin-top: 12px; padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer;">Повторить</button>
                         </div>`;
-                return;
+                        return;
                     }
                     
                     // Исправление двойной сериализации
@@ -761,7 +771,11 @@
                     
                     if (groups && Array.isArray(groups) && groups.length > 0) {
                         console.log(`[App] Загружено групп: ${groups.length}`);
+                        this.state.groupsCache = groups; // Сохраняем в кэш
                         UI.renderGroups(groups);
+                        
+                        // Фоновая загрузка всех упражнений для будущего поиска
+                        setTimeout(() => this.ensureExercisesLoaded(), 1000);
                     } else {
                         console.warn('[App] Группы не найдены');
                         listEl.innerHTML = '<div class="error">Группы не найдены</div>';
@@ -772,6 +786,58 @@
                         <div>❌ Критическая ошибка</div>
                         <div style="font-size: 12px; margin-top: 8px; color: #888;">${e.message}</div>
                     </div>`;
+                }
+            },
+            
+            async ensureExercisesLoaded() {
+                if (App.allExercisesCache && App.allExercisesCache.length > 0) return true;
+                
+                try {
+                    // Показываем лоадер только если это долгая загрузка
+                    const list = document.getElementById('groups-list');
+                    const originalContent = list.innerHTML;
+                    list.innerHTML = '<div class="loading">Индексация упражнений...</div>';
+                    
+                    const groupsRes = await API.getGroups();
+                    const groups = fixDoubleSerialization(groupsRes.groups);
+                    
+                    if (!groups) throw new Error('Нет групп');
+                    
+                    const all = [];
+                    // Параллельная загрузка всех групп (быстрее)
+                    const promises = groups.map(group => API.getExercises(group));
+                    const results = await Promise.all(promises);
+                    
+                    results.forEach((res, index) => {
+                        const exercises = fixDoubleSerialization(res.exercises);
+                        if (exercises) {
+                            // Добавляем группу к каждому упражнению для поиска
+                            const groupName = groups[index];
+                            exercises.forEach(ex => {
+                                const exObj = typeof ex === 'string' ? {name: ex} : ex;
+                                exObj.group = groupName; 
+                                all.push(exObj);
+                            });
+                        }
+                    });
+                    
+                    // Уникальность
+                    const uniqueMap = new Map();
+                    all.forEach(ex => uniqueMap.set(ex.name, ex));
+                    
+                    App.allExercisesCache = Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+                    
+                    // Восстанавливаем контент (если мы просто кэшировали)
+                    // Но если мы уже в поиске - не восстанавливаем
+                    const currentQuery = document.getElementById('searchGroups')?.value?.trim();
+                    if (!currentQuery || currentQuery.length === 0) {
+                        list.innerHTML = originalContent;
+                    }
+                    
+                    return true;
+                } catch (e) {
+                    console.error("Ошибка кэширования:", e);
+                    return false;
                 }
             },
 

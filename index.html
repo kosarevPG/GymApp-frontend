@@ -456,7 +456,7 @@
                 <div class="modal-title">Добавить упражнение</div>
                 <button class="modal-close" onclick="UI.toggleModal('modalAddExercise', false)">×</button>
             </div>
-            <div id="add-exercise-list" class="list-grid"></div>
+            <div id="add-exercise-list" class="list-container"></div>
         </div>
     </div>
     
@@ -609,7 +609,7 @@
                 this.interval = setInterval(() => {
                     const delta = Date.now() - this.startTime;
                     this.render(this.accumulated + delta);
-                }, 10);
+                }, 100); // 100ms для экономии батареи на мобильных устройствах
             },
             
             stop() {
@@ -640,7 +640,8 @@
                 sets: [], // Старая структура (для обратной совместимости)
                 activeExercises: [], // Новая структура для суперсетов: [{name: "...", sets: [...]}]
                 sessionId: null, // UUID сессии для связывания упражнений в суперсет
-                orderCounter: 0 // Счетчик порядка выполнения подходов
+                orderCounter: 0, // Счетчик порядка выполнения подходов
+                isSaving: false // Защита от дублирования записей при быстрых кликах
             },
 
             init() {
@@ -895,6 +896,9 @@
             },
 
             async toggleSet(id) {
+                // Защита от дублирования записей при быстрых кликах
+                if (this.state.isSaving) return;
+                
                 const idx = this.state.sets.findIndex(s => s.id === id);
                 if (idx === -1) return;
                 
@@ -915,22 +919,33 @@
                 this.state.orderCounter++;
                 localStorage.setItem('gym_order_counter', this.state.orderCounter.toString());
 
-                const res = await API.saveSet({
-                    exercise: this.state.exercise.name,
-                    weight: set.weight,
-                    reps: set.reps,
-                    rest: set.rest,
-                    order: this.state.orderCounter, // Отправляем порядковый номер
-                    note: (this.state.activeExercises[0] && this.state.activeExercises[0].note) || ""  // Отправляем заметку из первого упражнения
-                });
+                this.state.isSaving = true;
+                try {
+                    const res = await API.saveSet({
+                        exercise: this.state.exercise.name,
+                        weight: set.weight,
+                        reps: set.reps,
+                        rest: set.rest,
+                        order: this.state.orderCounter, // Отправляем порядковый номер
+                        note: (this.state.activeExercises[0] && this.state.activeExercises[0].note) || ""  // Отправляем заметку из первого упражнения
+                    });
 
-                if (res.status !== 'success') {
-                    Haptic.notification('error'); // 📳 Вибрация ошибки
+                    if (res.status !== 'success') {
+                        Haptic.notification('error'); // 📳 Вибрация ошибки
+                        alert("Ошибка сохранения!");
+                        set.completed = false;
+                        UI.renderSets(this.state.sets);
+                    } else {
+                        Haptic.impact('medium'); // 📳 Приятный легкий стук при успехе
+                    }
+                } catch (e) {
+                    console.error('[App] Ошибка сохранения:', e);
+                    Haptic.notification('error');
                     alert("Ошибка сохранения!");
                     set.completed = false;
                     UI.renderSets(this.state.sets);
-                } else {
-                    Haptic.impact('medium'); // 📳 Приятный легкий стук при успехе
+                } finally {
+                    this.state.isSaving = false;
                 }
             },
 
@@ -951,6 +966,9 @@
             },
             
             async toggleSetInSuperset(exIndex, setIndex) {
+                // Защита от дублирования записей при быстрых кликах
+                if (this.state.isSaving) return;
+                
                 const exBlock = this.state.activeExercises[exIndex];
                 if (!exBlock || !exBlock.sets[setIndex]) return;
                 
@@ -972,22 +990,33 @@
                 this.state.orderCounter++;
                 localStorage.setItem('gym_order_counter', this.state.orderCounter.toString());
 
-                const res = await API.saveSet({
-                    exercise: exBlock.name,
-                    weight: set.weight,
-                    reps: set.reps,
-                    rest: set.rest,
-                    order: this.state.orderCounter, // Отправляем порядковый номер
-                    note: exBlock.note || ""  // Отправляем заметку
-                });
+                this.state.isSaving = true;
+                try {
+                    const res = await API.saveSet({
+                        exercise: exBlock.name,
+                        weight: set.weight,
+                        reps: set.reps,
+                        rest: set.rest,
+                        order: this.state.orderCounter, // Отправляем порядковый номер
+                        note: exBlock.note || ""  // Отправляем заметку
+                    });
 
-                if (res.status !== 'success') {
+                    if (res.status !== 'success') {
+                        Haptic.notification('error');
+                        alert("Ошибка сохранения!");
+                        set.completed = false;
+                        UI.renderWorkoutScreen();
+                    } else {
+                        Haptic.impact('medium');
+                    }
+                } catch (e) {
+                    console.error('[App] Ошибка сохранения:', e);
                     Haptic.notification('error');
                     alert("Ошибка сохранения!");
                     set.completed = false;
                     UI.renderWorkoutScreen();
-                } else {
-                    Haptic.impact('medium');
+                } finally {
+                    this.state.isSaving = false;
                 }
             },
 

@@ -850,6 +850,40 @@
                 }
             },
             
+            // Кэширование упражнений в localStorage
+            _getCachedExercises() {
+                try {
+                    const cached = localStorage.getItem('gym_exercises_cache');
+                    if (!cached) return null;
+                    
+                    const { data, timestamp } = JSON.parse(cached);
+                    const now = Date.now();
+                    const TTL = 10 * 60 * 1000; // 10 минут
+                    
+                    if (now - timestamp < TTL) {
+                        console.log('[App] Упражнения загружены из кэша');
+                        return data;
+                    } else {
+                        localStorage.removeItem('gym_exercises_cache');
+                        return null;
+                    }
+                } catch (e) {
+                    console.warn('[App] Ошибка чтения кэша упражнений:', e);
+                    return null;
+                }
+            },
+            
+            _saveExercisesToCache(exercises) {
+                try {
+                    localStorage.setItem('gym_exercises_cache', JSON.stringify({
+                        data: exercises,
+                        timestamp: Date.now()
+                    }));
+                } catch (e) {
+                    console.warn('[App] Ошибка сохранения кэша упражнений:', e);
+                }
+            },
+            
             async loadGroups() {
                 const listEl = document.getElementById('groups-list');
                 if (!listEl) return;
@@ -857,8 +891,8 @@
                 // 1. Проверяем кэш в памяти
                 if (this.state.groupsCache) {
                     UI.renderGroups(this.state.groupsCache);
-                    // Фоновая загрузка всех упражнений для будущего поиска
-                    setTimeout(() => this.ensureExercisesLoaded(), 1000);
+                    // Фоновая загрузка всех упражнений для будущего поиска (без лоадера)
+                    setTimeout(() => this._loadExercisesInBackground(), 1000);
                     return;
                 }
                 
@@ -867,8 +901,8 @@
                 if (cachedGroups) {
                     this.state.groupsCache = cachedGroups;
                     UI.renderGroups(cachedGroups);
-                    // Фоновая загрузка всех упражнений
-                    setTimeout(() => this.ensureExercisesLoaded(), 1000);
+                    // Фоновая загрузка всех упражнений (без лоадера)
+                    setTimeout(() => this._loadExercisesInBackground(), 1000);
                     
                     // Обновляем в фоне (без показа лоадера)
                     this._loadGroupsInBackground();
@@ -923,8 +957,8 @@
                             UI.renderGroups(groups);
                         }
                         
-                        // Фоновая загрузка всех упражнений для будущего поиска
-                        setTimeout(() => this.ensureExercisesLoaded(), 1000);
+                        // Фоновая загрузка всех упражнений для будущего поиска (без лоадера)
+                        setTimeout(() => this._loadExercisesInBackground(), 1000);
                     } else {
                         console.warn('[App] Группы не найдены');
                         if (listEl && showLoader) {
@@ -943,15 +977,28 @@
                 }
             },
             
-            async ensureExercisesLoaded() {
+            async ensureExercisesLoaded(showLoader = false) {
+                // 1. Проверяем кэш в памяти
                 if (App.allExercisesCache && App.allExercisesCache.length > 0) return true;
                 
-                try {
-                    // Показываем лоадер только если это долгая загрузка
-                    const list = document.getElementById('groups-list');
-                    const originalContent = list.innerHTML;
+                // 2. Проверяем localStorage кэш
+                const cachedExercises = this._getCachedExercises();
+                if (cachedExercises) {
+                    App.allExercisesCache = cachedExercises;
+                    // Загружаем в фоне для обновления
+                    this._loadExercisesInBackground();
+                    return true;
+                }
+                
+                // 3. Если нужен лоадер (пользователь начал поиск) - показываем
+                const list = document.getElementById('groups-list');
+                let originalContent = null;
+                if (showLoader && list) {
+                    originalContent = list.innerHTML;
                     list.innerHTML = '<div class="loading">Индексация упражнений...</div>';
-                    
+                }
+                
+                try {
                     const groupsRes = await API.getGroups();
                     const groups = fixDoubleSerialization(groupsRes.groups);
                     
@@ -979,19 +1026,63 @@
                     const uniqueMap = new Map();
                     all.forEach(ex => uniqueMap.set(ex.name, ex));
                     
-                    App.allExercisesCache = Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+                    const sorted = Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+                    App.allExercisesCache = sorted;
                     
-                    // Восстанавливаем контент (если мы просто кэшировали)
-                    // Но если мы уже в поиске - не восстанавливаем
-                    const currentQuery = document.getElementById('searchGroups')?.value?.trim();
-                    if (!currentQuery || currentQuery.length === 0) {
-                        list.innerHTML = originalContent;
+                    // Сохраняем в localStorage
+                    this._saveExercisesToCache(sorted);
+                    
+                    // Восстанавливаем контент только если показывали лоадер
+                    if (showLoader && originalContent && list) {
+                        const currentQuery = document.getElementById('searchGroups')?.value?.trim();
+                        if (!currentQuery || currentQuery.length === 0) {
+                            list.innerHTML = originalContent;
+                        }
                     }
                     
                     return true;
                 } catch (e) {
                     console.error("Ошибка кэширования:", e);
+                    // Восстанавливаем контент при ошибке
+                    if (showLoader && originalContent && list) {
+                        list.innerHTML = originalContent;
+                    }
                     return false;
+                }
+            },
+            
+            // Фоновая загрузка упражнений (без блокировки UI)
+            async _loadExercisesInBackground() {
+                try {
+                    const groupsRes = await API.getGroups();
+                    const groups = fixDoubleSerialization(groupsRes.groups);
+                    if (!groups) return;
+                    
+                    const all = [];
+                    const promises = groups.map(group => API.getExercises(group));
+                    const results = await Promise.all(promises);
+                    
+                    results.forEach((res, index) => {
+                        const exercises = fixDoubleSerialization(res.exercises);
+                        if (exercises) {
+                            const groupName = groups[index];
+                            exercises.forEach(ex => {
+                                const exObj = typeof ex === 'string' ? {name: ex} : ex;
+                                exObj.group = groupName;
+                                all.push(exObj);
+                            });
+                        }
+                    });
+                    
+                    const uniqueMap = new Map();
+                    all.forEach(ex => uniqueMap.set(ex.name, ex));
+                    const sorted = Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+                    
+                    App.allExercisesCache = sorted;
+                    this._saveExercisesToCache(sorted);
+                    console.log('[App] Упражнения обновлены в фоне');
+                } catch (e) {
+                    console.warn('[App] Ошибка фонового обновления упражнений:', e);
                 }
             },
 
@@ -1727,8 +1818,8 @@
                 
                 // 2. Проверяем кэш упражнений
                 if (!App.allExercisesCache || App.allExercisesCache.length === 0) {
-                    // Если кэша нет - загружаем его (один раз)
-                    const success = await App.ensureExercisesLoaded();
+                    // Если кэша нет - загружаем его с показом лоадера (пользователь ждет)
+                    const success = await App.ensureExercisesLoaded(true);
                     if (!success) {
                         list.innerHTML = '<div class="error">Ошибка поиска</div>';
                         return;

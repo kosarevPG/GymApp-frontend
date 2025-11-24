@@ -1169,6 +1169,9 @@
                         return;
                     }
                     
+                    // Исправление двойной сериализации
+                    const exercises = fixDoubleSerialization(res.exercises);
+                    
                     // Рендерим список упражнений
                     // Добавляем кнопку "Назад к группам" сверху
                     const backBtn = `
@@ -1177,7 +1180,7 @@
                         </div>
                     `;
                     
-                    const exercisesHtml = res.exercises.map(ex => {
+                    const exercisesHtml = exercises.map(ex => {
                         const name = typeof ex === 'string' ? ex : ex.name;
                         // Фильтруем, если такое упражнение уже есть в суперсете
                         const isAdded = App.state.activeExercises.some(active => active.name === name);

@@ -10,15 +10,15 @@
     
     <style>
         :root {
-            --bg-color: #000000;
-            --card-bg: #1c1c1e;
-            --input-bg: #2c2c2e;
-            --text-color: #ffffff;
-            --text-secondary: #8e8e93;
-            --accent: #0a84ff;
-            --danger: #ff453a;
-            --success: #30d158;
-            --separator: #2c2c2e;
+            --bg-color: #ffffff;
+            --card-bg: #f2f2f7;
+            --input-bg: #e5e5ea;
+            --text-color: #000000;
+            --text-secondary: #6e6e73;
+            --accent: #007aff;
+            --danger: #ff3b30;
+            --success: #34c759;
+            --separator: #c6c6c8;
         }
 
         * {
@@ -91,11 +91,11 @@
         
         .search-input:focus { 
             outline: none; 
-            background-color: #3a3a3c; 
+            background-color: #d1d1d6; 
         }
         
         .search-input::placeholder { 
-            color: #636366; 
+            color: #8e8e93; 
         }
         
         /* Container */
@@ -129,15 +129,15 @@
 
         .list-img {
             width: 56px; height: 56px; border-radius: 8px; object-fit: cover;
-            background: #333; margin-right: 16px; flex-shrink: 0;
+            background: #e5e5ea; margin-right: 16px; flex-shrink: 0;
         }
         .list-img.placeholder {
             display: flex; align-items: center; justify-content: center;
-            font-size: 24px; background: var(--input-bg); color: #555;
+            font-size: 24px; background: var(--input-bg); color: #8e8e93;
         }
         .list-content { flex: 1; display: flex; align-items: center; justify-content: space-between; }
         .list-title { font-size: 17px; font-weight: 500; }
-        .list-arrow { color: #3a3a3c; font-size: 20px; }
+        .list-arrow { color: var(--text-secondary); font-size: 20px; }
         
         .groups-container {
             display: flex;
@@ -198,7 +198,7 @@
         .set-row.completed { opacity: 0.4; }
         
         .set-input {
-            background: var(--input-bg); border: none; color: white;
+            background: var(--input-bg); border: none; color: var(--text-color);
             border-radius: 8px; padding: 10px 5px; text-align: center;
             font-size: 17px; width: 100%;
         }
@@ -245,7 +245,7 @@
             display: flex; justify-content: center; align-items: center; gap: 8px;
         }
         .btn-remove-exercise {
-            background: #2c1a1a; color: var(--danger); border: none;
+            background: rgba(255, 59, 48, 0.1); color: var(--danger); border: none;
             border-radius: 8px; padding: 6px 10px; font-weight: bold; cursor: pointer;
         }
         .set-remove {
@@ -260,7 +260,7 @@
             display: none; /* Скрыто по умолчанию */
             position: fixed; 
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.85); 
+            background: rgba(0,0,0,0.5); 
             backdrop-filter: blur(5px);
             z-index: 2000; 
             justify-content: center; 
@@ -281,7 +281,7 @@
             width: 100%; 
             max-width: 350px;
             overflow: hidden; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             max-height: 90vh;
             overflow-y: auto;
         }
@@ -357,7 +357,7 @@
             border-radius: 12px; margin-bottom: 12px; overflow: hidden;
         }
         .history-superset-header {
-            background: #2c2c2e; padding: 8px 12px; font-size: 13px; font-weight: 600;
+            background: var(--input-bg); padding: 8px 12px; font-size: 13px; font-weight: 600;
             color: var(--accent); border-bottom: 1px solid var(--separator);
             display: flex; align-items: center; gap: 6px;
         }
@@ -395,8 +395,7 @@
         <div id="screen-groups" class="screen active">
             <div class="search-wrapper">
                 <input type="text" id="searchGroups" class="search-input" 
-                       placeholder="Поиск упражнений" autocomplete="off" 
-                       oninput="UI.filterGlobal(this.value)">
+                       placeholder="Поиск упражнений" autocomplete="off">
             </div>
             <div id="groups-list" class="list-container loading">Загрузка...</div>
         </div>
@@ -514,7 +513,16 @@
             }
         };
 
-        // ==================== API MODULE ====================
+        // ==================== UTILITY FUNCTIONS ====================
+        // Debounce для оптимизации частых вызовов
+        const debounce = (func, delay) => {
+            let timeoutId;
+            return function(...args) {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => func.apply(this, args), delay);
+            };
+        };
+        
         // Утилита для исправления двойной сериализации JSON
         const fixDoubleSerialization = (data) => {
             if (!data) return data;
@@ -724,6 +732,14 @@
                 
                 // ПРИНУДИТЕЛЬНО очищаем заголовок при старте
                 UI.updateNav('', false);
+                
+                // Привязываем debounced поиск к инпуту
+                const searchInput = document.getElementById('searchGroups');
+                if (searchInput) {
+                    searchInput.addEventListener('input', debounce((e) => {
+                        UI.filterGlobal(e.target.value);
+                    }, 300));
+                }
             },
 
             goBack() {
@@ -1125,6 +1141,22 @@
                 }
             },
 
+            // Кэш DOM-элементов для быстрого доступа
+            _domCache: new Map(),
+            
+            _getCachedElement(id) {
+                if (!this._domCache.has(id)) {
+                    const el = document.getElementById(id);
+                    if (el) this._domCache.set(id, el);
+                    return el;
+                }
+                return this._domCache.get(id);
+            },
+            
+            _clearDOMCache() {
+                this._domCache.clear();
+            },
+            
             updateSetDataInSuperset(exIndex, setIndex, field, value) {
                 const exBlock = this.state.activeExercises[exIndex];
                 if (!exBlock || !exBlock.sets[setIndex]) return;
@@ -1138,29 +1170,33 @@
                         set[field] = parseFloat(normalized) || 0;
                     }
                     
-                    // Обновляем UI статистики (DOM-манипуляция)
-                    const setId = set.id;
-                    
-                    // 1. Обновляем 1ПМ
-                    const ormEl = document.getElementById(`orm-${setId}`);
-                    if (ormEl) {
-                        const oneRM = UI.calculate1RM(set.weight, set.reps);
-                        ormEl.textContent = oneRM > 0 ? `🏆 1ПМ: ${oneRM}кг` : '';
-                    }
-                    
-                    // 2. Обновляем Дельту (только если меняем вес)
-                    if (field === 'weight') {
-                        const deltaEl = document.getElementById(`delta-${setId}`);
-                        if (deltaEl) {
-                            const deltaObj = UI.getDelta(set.weight, set.prevWeight);
-                            if (deltaObj) {
-                                deltaEl.textContent = deltaObj.text;
-                                deltaEl.className = `stat-delta visible ${deltaObj.class}`;
-                    } else {
-                                deltaEl.className = 'stat-delta'; // Скрываем
+                    // Используем requestAnimationFrame для батчинга обновлений
+                    requestAnimationFrame(() => {
+                        const setId = set.id;
+                        
+                        // 1. Обновляем 1ПМ (с кэшированием DOM)
+                        const ormId = `orm-${setId}`;
+                        const ormEl = this._getCachedElement(ormId);
+                        if (ormEl) {
+                            const oneRM = UI.calculate1RM(set.weight, set.reps);
+                            ormEl.textContent = oneRM > 0 ? `🏆 1ПМ: ${oneRM}кг` : '';
+                        }
+                        
+                        // 2. Обновляем Дельту (только если меняем вес)
+                        if (field === 'weight') {
+                            const deltaId = `delta-${setId}`;
+                            const deltaEl = this._getCachedElement(deltaId);
+                            if (deltaEl) {
+                                const deltaObj = UI.getDelta(set.weight, set.prevWeight);
+                                if (deltaObj) {
+                                    deltaEl.textContent = deltaObj.text;
+                                    deltaEl.className = `stat-delta visible ${deltaObj.class}`;
+                                } else {
+                                    deltaEl.className = 'stat-delta'; // Скрываем
+                                }
                             }
                         }
-                    }
+                    });
                 }
             },
 
@@ -1379,63 +1415,143 @@
 
             renderGroups(groups) {
                 const container = document.getElementById('groups-list');
+                if (!container) return;
+                
+                // Используем DocumentFragment для батчинга вставок
+                const fragment = document.createDocumentFragment();
+                const listContainer = document.createElement('div');
+                listContainer.className = 'list-container';
+                
                 // Сортируем группы в нужном порядке
                 const order = ['Спина', 'Ноги', 'Грудь', 'Плечи', 'Бицепс', 'Трицепс', 'Кардио', 'Пресс'];
                 const sortedGroups = order.filter(g => groups.includes(g))
                     .concat(groups.filter(g => !order.includes(g)));
                 
-                // Рендерим как список (как на скрине)
-                const html = sortedGroups.map(group => {
+                // Рендерим как список с DocumentFragment и ленивой загрузкой
+                sortedGroups.forEach(group => {
+                    const item = document.createElement('div');
+                    item.className = 'list-item';
+                    item.onclick = () => App.selectGroup(group);
+                    
                     const imgSrc = this.getGroupImage(group);
-                    // Если есть картинка - ставим img, иначе заглушку (первая буква)
-                    const imgBlock = imgSrc 
-                        ? `<img src="${imgSrc}" class="list-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                           <div class="list-img placeholder" style="display:none;">${group[0]}</div>`
-                        : `<div class="list-img placeholder">${group[0]}</div>`;
-
-                    return `
-                        <div class="list-item" onclick="App.selectGroup('${group.replace(/'/g, "\\'")}')">
-                            ${imgBlock}
-                            <div class="list-content">
-                                <span class="list-title">${group}</span>
-                                <span class="list-arrow">›</span>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                container.innerHTML = `<div class="list-container">${html}</div><div class="groups-footer"><button class="btn-all" onclick="App.loadAllExercises()">Все упражнения</button></div>`;
+                    if (imgSrc) {
+                        const img = document.createElement('img');
+                        img.className = 'list-img';
+                        img.loading = 'lazy'; // Ленивая загрузка
+                        img.src = imgSrc;
+                        img.onerror = function() {
+                            this.style.display = 'none';
+                            const placeholder = item.querySelector('.list-img.placeholder');
+                            if (placeholder) placeholder.style.display = 'flex';
+                        };
+                        item.appendChild(img);
+                        
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'list-img placeholder';
+                        placeholder.style.display = 'none';
+                        placeholder.textContent = group[0];
+                        item.appendChild(placeholder);
+                    } else {
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'list-img placeholder';
+                        placeholder.textContent = group[0];
+                        item.appendChild(placeholder);
+                    }
+                    
+                    const content = document.createElement('div');
+                    content.className = 'list-content';
+                    
+                    const title = document.createElement('span');
+                    title.className = 'list-title';
+                    title.textContent = group;
+                    content.appendChild(title);
+                    
+                    const arrow = document.createElement('span');
+                    arrow.className = 'list-arrow';
+                    arrow.textContent = '›';
+                    content.appendChild(arrow);
+                    
+                    item.appendChild(content);
+                    listContainer.appendChild(item);
+                });
+                
+                fragment.appendChild(listContainer);
+                
+                const footer = document.createElement('div');
+                footer.className = 'groups-footer';
+                const btn = document.createElement('button');
+                btn.className = 'btn-all';
+                btn.textContent = 'Все упражнения';
+                btn.onclick = () => App.loadAllExercises();
+                footer.appendChild(btn);
+                fragment.appendChild(footer);
+                
+                container.innerHTML = '';
+                container.appendChild(fragment);
             },
 
             renderExercises(list) {
                 const container = document.getElementById('exercises-list');
+                if (!container) return;
                 
                 if (!list || list.length === 0) {
                     container.innerHTML = '<div class="loading">Ничего не найдено</div>';
                     return;
                 }
                 
-                const html = list.map(ex => {
+                // Используем DocumentFragment для батчинга вставок
+                const fragment = document.createDocumentFragment();
+                
+                list.forEach(ex => {
                     const name = typeof ex === 'string' ? ex : ex.name;
                     const image = (typeof ex === 'object' && ex.image) ? ex.image : null;
                     
+                    const item = document.createElement('div');
+                    item.className = 'list-item exercise-item';
+                    item.setAttribute('data-name', name.toLowerCase());
+                    
                     // Блок картинки (Кликабельный -> Инфо)
-                    const imgBlock = image 
-                        ? `<img src="${image}" class="list-img" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>`
-                        : `<div class="list-img placeholder" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>ℹ️</div>`;
-
-                    return `
-                        <div class="list-item exercise-item" data-name="${name.toLowerCase()}">
-                            ${imgBlock}
-                            <div class="list-content" onclick='App.selectExercise(${JSON.stringify(ex)})'>
-                                <span class="list-title">${name}</span>
-                                <span class="list-arrow">›</span>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                container.innerHTML = html;
+                    if (image) {
+                        const img = document.createElement('img');
+                        img.className = 'list-img';
+                        img.loading = 'lazy'; // Ленивая загрузка
+                        img.src = image;
+                        img.onclick = (e) => {
+                            e.stopPropagation();
+                            UI.showInfo(ex);
+                        };
+                        item.appendChild(img);
+                    } else {
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'list-img placeholder';
+                        placeholder.textContent = 'ℹ️';
+                        placeholder.onclick = (e) => {
+                            e.stopPropagation();
+                            UI.showInfo(ex);
+                        };
+                        item.appendChild(placeholder);
+                    }
+                    
+                    const content = document.createElement('div');
+                    content.className = 'list-content';
+                    content.onclick = () => App.selectExercise(ex);
+                    
+                    const title = document.createElement('span');
+                    title.className = 'list-title';
+                    title.textContent = name;
+                    content.appendChild(title);
+                    
+                    const arrow = document.createElement('span');
+                    arrow.className = 'list-arrow';
+                    arrow.textContent = '›';
+                    content.appendChild(arrow);
+                    
+                    item.appendChild(content);
+                    fragment.appendChild(item);
+                });
+                
+                container.innerHTML = '';
+                container.appendChild(fragment);
             },
 
             // Логика Поиска (Фильтрация на лету)
@@ -1491,28 +1607,69 @@
                     return;
                 }
                 
-                // 4. Рендерим результат
-                const html = filtered.map(ex => {
-                    const image = ex.image || null;
-                    const imgBlock = image 
-                        ? `<img src="${image}" class="list-img" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>`
-                        : `<div class="list-img placeholder" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>ℹ️</div>`;
-
-                    return `
-                        <div class="list-item" onclick='App.selectExercise(${JSON.stringify(ex)})'>
-                            ${imgBlock}
-                            <div class="list-content">
-                                <div>
-                                    <span class="list-title">${ex.name}</span>
-                                    <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">${ex.group || ''}</div>
-                                </div>
-                                <span class="list-arrow">›</span>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
+                // 4. Рендерим результат с DocumentFragment и ленивой загрузкой
+                const fragment = document.createDocumentFragment();
+                const listContainer = document.createElement('div');
+                listContainer.className = 'list-container';
                 
-                list.innerHTML = `<div class="list-container">${html}</div>`;
+                filtered.forEach(ex => {
+                    const item = document.createElement('div');
+                    item.className = 'list-item';
+                    item.onclick = () => App.selectExercise(ex);
+                    
+                    const image = ex.image || null;
+                    if (image) {
+                        const img = document.createElement('img');
+                        img.className = 'list-img';
+                        img.loading = 'lazy'; // Ленивая загрузка
+                        img.src = image;
+                        img.onclick = (e) => {
+                            e.stopPropagation();
+                            UI.showInfo(ex);
+                        };
+                        item.appendChild(img);
+                    } else {
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'list-img placeholder';
+                        placeholder.textContent = 'ℹ️';
+                        placeholder.onclick = (e) => {
+                            e.stopPropagation();
+                            UI.showInfo(ex);
+                        };
+                        item.appendChild(placeholder);
+                    }
+                    
+                    const content = document.createElement('div');
+                    content.className = 'list-content';
+                    
+                    const innerDiv = document.createElement('div');
+                    
+                    const title = document.createElement('span');
+                    title.className = 'list-title';
+                    title.textContent = ex.name;
+                    innerDiv.appendChild(title);
+                    
+                    if (ex.group) {
+                        const groupLabel = document.createElement('div');
+                        groupLabel.style.cssText = 'font-size:12px; color:var(--text-secondary); margin-top:2px;';
+                        groupLabel.textContent = ex.group;
+                        innerDiv.appendChild(groupLabel);
+                    }
+                    
+                    content.appendChild(innerDiv);
+                    
+                    const arrow = document.createElement('span');
+                    arrow.className = 'list-arrow';
+                    arrow.textContent = '›';
+                    content.appendChild(arrow);
+                    
+                    item.appendChild(content);
+                    listContainer.appendChild(item);
+                });
+                
+                fragment.appendChild(listContainer);
+                list.innerHTML = '';
+                list.appendChild(fragment);
             },
 
             renderSets(sets) {
@@ -1560,12 +1717,19 @@
 
             renderWorkoutScreen() {
                 const container = document.getElementById('sets-container');
+                if (!container) return;
                 
                 // Если упражнений нет (баг), очищаем
                 if (!App.state.activeExercises || App.state.activeExercises.length === 0) {
                     container.innerHTML = '<div class="error">Ошибка состояния</div>';
                     return;
                 }
+                
+                // Очищаем кэш DOM при полной перерисовке
+                this._clearDOMCache();
+                
+                // Используем requestAnimationFrame для оптимизации рендеринга
+                requestAnimationFrame(() => {
                 
                 // Рендерим каждую карточку упражнения
                 const cardsHtml = App.state.activeExercises.map((exBlock, exIndex) => {
@@ -1678,6 +1842,7 @@
                 `;
                 
                 container.innerHTML = cardsHtml + addExerciseBtn;
+                });
             },
 
             renderHistory(historyData) {
@@ -1804,14 +1969,33 @@
                 this.toggleModal('infoModal', true);
             },
 
-            // === Функции расчета микро-аналитики ===
+            // === Функции расчета микро-аналитики (с мемоизацией) ===
+            _1RMCache: new Map(),
+            _deltaCache: new Map(),
+            
             calculate1RM(weight, reps) {
                 const w = parseFloat(weight) || 0;
                 const r = parseInt(reps) || 0;
                 if (w === 0 || r === 0) return 0;
                 if (r === 1) return w;
+                
+                // Мемоизация: проверяем кэш
+                const cacheKey = `${w}_${r}`;
+                if (this._1RMCache.has(cacheKey)) {
+                    return this._1RMCache.get(cacheKey);
+                }
+                
                 // Формула Эпли: Weight * (1 + Reps/30)
-                return Math.round(w * (1 + r / 30));
+                const result = Math.round(w * (1 + r / 30));
+                this._1RMCache.set(cacheKey, result);
+                
+                // Ограничиваем размер кэша (максимум 1000 записей)
+                if (this._1RMCache.size > 1000) {
+                    const firstKey = this._1RMCache.keys().next().value;
+                    this._1RMCache.delete(firstKey);
+                }
+                
+                return result;
             },
 
             getDelta(current, prev) {
@@ -1820,13 +2004,36 @@
                 
                 if (prevVal === 0) return null; // Нет истории - нет дельты
                 
+                // Мемоизация: проверяем кэш
+                const cacheKey = `${curVal}_${prevVal}`;
+                if (this._deltaCache.has(cacheKey)) {
+                    return this._deltaCache.get(cacheKey);
+                }
+                
                 const diff = curVal - prevVal;
                 // Округляем до 1 знака, если дробное (например 2.5), иначе целое
                 const diffStr = Number.isInteger(diff) ? diff : diff.toFixed(1);
                 
-                if (diff > 0) return { text: `+${diffStr} кг`, class: 'positive' };
-                if (diff < 0) return { text: `${diffStr} кг`, class: 'negative' };
-                return { text: '0', class: 'neutral' };
+                let result;
+                if (diff > 0) result = { text: `+${diffStr} кг`, class: 'positive' };
+                else if (diff < 0) result = { text: `${diffStr} кг`, class: 'negative' };
+                else result = { text: '0', class: 'neutral' };
+                
+                this._deltaCache.set(cacheKey, result);
+                
+                // Ограничиваем размер кэша
+                if (this._deltaCache.size > 1000) {
+                    const firstKey = this._deltaCache.keys().next().value;
+                    this._deltaCache.delete(firstKey);
+                }
+                
+                return result;
+            },
+            
+            // Очистка кэшей (вызывать при необходимости)
+            clearCalculationCache() {
+                this._1RMCache.clear();
+                this._deltaCache.clear();
             },
 
             validateFloatInput(input) {

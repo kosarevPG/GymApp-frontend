@@ -628,6 +628,7 @@
 
             getGroups: () => API.request('groups'),
             getExercises: (group) => API.request('exercises', { group }),
+            getAllExercises: () => API.request('all_exercises'),
             getHistory: (exercise, mode = 'full', limit = 20) => API.request('history', { exercise, mode, limit }),
             saveSet: (data) => API.request('save_set', {}, 'POST', { 
                 ...data, 
@@ -999,38 +1000,29 @@
                 }
                 
                 try {
-                    const groupsRes = await API.getGroups();
-                    const groups = fixDoubleSerialization(groupsRes.groups);
+                    const startTime = performance.now();
+                    // ОДИН запрос вместо 8! Загружаем все упражнения сразу
+                    const res = await API.getAllExercises();
+                    const duration = Math.round(performance.now() - startTime);
                     
-                    if (!groups) throw new Error('Нет групп');
+                    const exercises = fixDoubleSerialization(res.exercises);
+                    if (!exercises || exercises.length === 0) {
+                        throw new Error('Нет упражнений');
+                    }
                     
-                    const all = [];
-                    // Параллельная загрузка всех групп (быстрее)
-                    const promises = groups.map(group => API.getExercises(group));
-                    const results = await Promise.all(promises);
-                    
-                    results.forEach((res, index) => {
-                        const exercises = fixDoubleSerialization(res.exercises);
-                        if (exercises) {
-                            // Добавляем группу к каждому упражнению для поиска
-                            const groupName = groups[index];
-                            exercises.forEach(ex => {
-                                const exObj = typeof ex === 'string' ? {name: ex} : ex;
-                                exObj.group = groupName; 
-                                all.push(exObj);
-                            });
-                        }
-                    });
-                    
-                    // Уникальность
+                    // Упражнения уже содержат поле 'group' из бэкенда
                     const uniqueMap = new Map();
-                    all.forEach(ex => uniqueMap.set(ex.name, ex));
+                    exercises.forEach(ex => {
+                        const exObj = typeof ex === 'string' ? {name: ex} : ex;
+                        uniqueMap.set(exObj.name, exObj);
+                    });
                     
                     const sorted = Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
                     App.allExercisesCache = sorted;
                     
                     // Сохраняем в localStorage
                     this._saveExercisesToCache(sorted);
+                    console.log(`[App] Загружено упражнений: ${sorted.length} за ${duration}ms`);
                     
                     // Восстанавливаем контент только если показывали лоадер
                     if (showLoader && originalContent && list) {
@@ -1051,36 +1043,31 @@
                 }
             },
             
-            // Фоновая загрузка упражнений (без блокировки UI)
+            // Фоновая загрузка упражнений (без блокировки UI) - ОДИН запрос вместо 8!
             async _loadExercisesInBackground() {
                 try {
-                    const groupsRes = await API.getGroups();
-                    const groups = fixDoubleSerialization(groupsRes.groups);
-                    if (!groups) return;
+                    const startTime = performance.now();
+                    const res = await API.getAllExercises();
+                    const duration = Math.round(performance.now() - startTime);
                     
-                    const all = [];
-                    const promises = groups.map(group => API.getExercises(group));
-                    const results = await Promise.all(promises);
+                    const exercises = fixDoubleSerialization(res.exercises);
+                    if (!exercises || exercises.length === 0) {
+                        console.warn('[App] Нет упражнений в ответе');
+                        return;
+                    }
                     
-                    results.forEach((res, index) => {
-                        const exercises = fixDoubleSerialization(res.exercises);
-                        if (exercises) {
-                            const groupName = groups[index];
-                            exercises.forEach(ex => {
-                                const exObj = typeof ex === 'string' ? {name: ex} : ex;
-                                exObj.group = groupName;
-                                all.push(exObj);
-                            });
-                        }
+                    // Упражнения уже содержат поле 'group' из бэкенда
+                    const uniqueMap = new Map();
+                    exercises.forEach(ex => {
+                        const exObj = typeof ex === 'string' ? {name: ex} : ex;
+                        uniqueMap.set(exObj.name, exObj);
                     });
                     
-                    const uniqueMap = new Map();
-                    all.forEach(ex => uniqueMap.set(ex.name, ex));
                     const sorted = Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
                     
                     App.allExercisesCache = sorted;
                     this._saveExercisesToCache(sorted);
-                    console.log('[App] Упражнения обновлены в фоне');
+                    console.log(`[App] Упражнения обновлены в фоне: ${sorted.length} упражнений за ${duration}ms`);
                 } catch (e) {
                     console.warn('[App] Ошибка фонового обновления упражнений:', e);
                 }

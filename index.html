@@ -21,10 +21,10 @@
             --separator: #2c2c2e;
         }
 
-        * { 
+        * {
             margin: 0;
             padding: 0;
-            box-sizing: border-box; 
+            box-sizing: border-box;
             -webkit-tap-highlight-color: transparent; 
         }
         
@@ -289,23 +289,23 @@
         .modal-header {
             padding: 16px; 
             border-bottom: 1px solid var(--separator);
-            display: flex; 
+            display: flex;
             justify-content: space-between; 
             align-items: center;
         }
         
         .modal-title, h3 { 
             margin: 0; 
-            font-size: 18px; 
-            font-weight: 600; 
+            font-size: 18px;
+            font-weight: 600;
         }
         
         .modal-close { 
             background: none; 
-            border: none; 
+            border: none;
             color: var(--accent); 
             font-size: 24px; 
-            cursor: pointer; 
+            cursor: pointer;
             line-height: 1; 
             padding: 0; 
         }
@@ -388,8 +388,8 @@
         <div class="navbar-right">
             <button class="btn-nav hidden" id="btnHistory">📖 История</button>
         </div>
-    </div>
-    
+        </div>
+        
     <div class="container">
         <!-- Screen 1: Groups -->
         <div id="screen-groups" class="screen active">
@@ -422,8 +422,8 @@
                 <div id="sets-container"></div>
             </div>
         </div>
-    </div>
-    
+        </div>
+        
     <!-- Modal: History -->
     <div id="modalHistory" class="modal" style="display: none;">
         <div class="modal-content">
@@ -433,8 +433,8 @@
             </div>
             <div id="history-content" class="loading">Загрузка истории...</div>
         </div>
-    </div>
-    
+        </div>
+        
     <!-- Modal: Exercise Info -->
     <div id="infoModal" class="modal-overlay" style="display: none;">
         <div class="modal-card">
@@ -447,8 +447,8 @@
                 <p id="modalDesc" class="modal-desc">Описание...</p>
             </div>
         </div>
-    </div>
-
+        </div>
+        
     <!-- Modal: Add Exercise to Superset -->
     <div id="modalAddExercise" class="modal" style="display: none;">
         <div class="modal-content">
@@ -574,7 +574,7 @@
                     } else if (e.name === 'TypeError' && e.message.includes('Failed to fetch')) {
                         console.error("[API] Не удалось подключиться к серверу:", CONFIG.BACKEND_URL);
                         return { error: true, message: 'Не удалось подключиться к серверу. Проверьте адрес.' };
-                    } else {
+        } else {
                         console.error("[API] Ошибка:", e);
                         return { error: true, message: e.message || 'Неизвестная ошибка' };
                     }
@@ -753,7 +753,7 @@
                             <div style="font-size: 12px; margin-top: 8px; color: #888;">${res.message || 'Проверьте подключение к интернету'}</div>
                             <button onclick="App.loadGroups()" style="margin-top: 12px; padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer;">Повторить</button>
                         </div>`;
-                        return;
+                return;
                     }
                     
                     // Исправление двойной сериализации
@@ -805,9 +805,9 @@
                 const list = isSearchMode ? document.getElementById('groups-list') : document.getElementById('exercises-list');
                 if (!isSearchMode) {
                     list.innerHTML = '<div class="loading">Загрузка всех упражнений...</div>';
-                }
-                
-                try {
+            }
+            
+            try {
                     const groupsRes = await API.getGroups();
                     if (!groupsRes.groups || groupsRes.groups.length === 0) {
                         list.innerHTML = '<div class="error">Нет групп</div>';
@@ -928,7 +928,7 @@
                     const normalized = String(value).replace(',', '.');
                     if (field === 'reps') {
                         set[field] = parseInt(normalized) || 0;
-                    } else {
+        } else {
                         set[field] = parseFloat(normalized) || 0;
                     }
                 }
@@ -974,7 +974,7 @@
                         alert("Ошибка сохранения!");
                         set.completed = false;
                         UI.renderSets(this.state.sets);
-                    } else {
+            } else {
                         Haptic.impact('medium'); // 📳 Приятный легкий стук при успехе
                     }
                 } catch (e) {
@@ -1090,7 +1090,7 @@
                             if (deltaObj) {
                                 deltaEl.textContent = deltaObj.text;
                                 deltaEl.className = `stat-delta visible ${deltaObj.class}`;
-                            } else {
+                    } else {
                                 deltaEl.className = 'stat-delta'; // Скрываем
                             }
                         }
@@ -1253,9 +1253,9 @@
                 
                 if (!exerciseName) {
                     cont.innerHTML = "Выберите упражнение";
-                    return;
-                }
-                
+                return;
+            }
+            
                 const res = await API.getHistory(exerciseName);
                 if (res.history) UI.renderHistory(res.history);
                 else cont.innerHTML = "Пусто";
@@ -1348,7 +1348,7 @@
                     container.innerHTML = '<div class="loading">Ничего не найдено</div>';
                     return;
                 }
-
+                
                 const html = list.map(ex => {
                     const name = typeof ex === 'string' ? ex : ex.name;
                     const image = (typeof ex === 'object' && ex.image) ? ex.image : null;
@@ -1387,9 +1387,9 @@
                 });
             },
             
-            // Глобальный поиск на главной
+            // Глобальный поиск на главной (поиск по упражнениям, не по группам)
             filterGlobal(query) {
-                const q = query.toLowerCase();
+                const q = query.toLowerCase().trim();
                 const list = document.getElementById('groups-list');
                 
                 if (q.length === 0) {
@@ -1399,18 +1399,29 @@
                 }
                 
                 // Если начали вводить - переключаемся на "поиск по всем упражнениям"
-                if (!App.allExercisesCache) {
+                if (!App.allExercisesCache || App.allExercisesCache.length === 0) {
                     // Запускаем загрузку всего (покажем лоадер)
-                    list.innerHTML = '<div class="loading">Ищу...</div>';
-                    App.loadAllExercises(true); // true = return data, don't render screen
-                    return;
-                }
+                    list.innerHTML = '<div class="loading">Ищу упражнения...</div>';
+                    App.loadAllExercises(true).then(() => {
+                        // После загрузки снова вызываем фильтрацию
+                        if (query.toLowerCase().trim() === q) {
+                            UI.filterGlobal(query);
+                        }
+                    });
+                        return;
+                    }
                 
-                // Фильтруем кэш
+                // Фильтруем кэш упражнений по названию
                 const filtered = App.allExercisesCache.filter(ex => {
                     const name = typeof ex === 'string' ? ex : ex.name;
                     return name.toLowerCase().includes(q);
                 });
+                
+                // Если ничего не найдено
+                if (filtered.length === 0) {
+                    list.innerHTML = '<div class="loading">Ничего не найдено</div>';
+                    return;
+                }
                 
                 // Рендерим как список упражнений прямо на экране групп
                 const html = filtered.map(ex => {
@@ -1605,9 +1616,9 @@
                 
                 if (!historyData || historyData.length === 0) {
                     container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">История пуста</div>';
-                    return;
-                }
-                
+                        return;
+                    }
+                    
                 // 1. Группируем по ДАТЕ
                 const byDate = {};
                 historyData.forEach(item => {
@@ -1716,7 +1727,7 @@
                 if (exerciseImage && exerciseImage !== 'undefined' && exerciseImage !== '') {
                     imgEl.src = exerciseImage;
                     imgEl.style.display = 'block';
-                } else {
+                        } else {
                     imgEl.style.display = 'none';
                 }
                 

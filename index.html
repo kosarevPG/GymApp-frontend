@@ -1513,47 +1513,6 @@
                 }).join('');
                 
                 list.innerHTML = `<div class="list-container">${html}</div>`;
-            }, 
-                            ? `<img src="${groupImg}" class="list-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                               <div class="list-img placeholder" style="display:none;">${group.name[0]}</div>`
-                            : `<div class="list-img placeholder">${group.name[0]}</div>`;
-                        
-                        const exercisesHtml = group.exercises.map(ex => {
-                            const name = typeof ex === 'string' ? ex : ex.name;
-                            const image = (typeof ex === 'object' && ex.image) ? ex.image : null;
-                            const imgBlock = image 
-                                ? `<img src="${image}" class="list-img" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>`
-                                : `<div class="list-img placeholder" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>ℹ️</div>`;
-                            
-                            return `
-                                <div class="list-item" style="padding-left: 40px;" onclick='App.selectExercise(${JSON.stringify(ex)})'>
-                                    ${imgBlock}
-                                    <div class="list-content">
-                                        <span class="list-title">${name}</span>
-                                        <span class="list-arrow">›</span>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('');
-                        
-                        return `
-                            <div style="margin-bottom: 20px;">
-                                <div class="list-item" style="background: var(--card-bg); border-radius: 8px; margin-bottom: 8px;">
-                                    ${groupImgBlock}
-                                    <div class="list-content">
-                                        <span class="list-title" style="font-weight: 700;">${group.name}</span>
-                                    </div>
-                                </div>
-                                ${exercisesHtml}
-                            </div>
-                        `;
-                    }).join('');
-                    
-                    list.innerHTML = html;
-                } catch (e) {
-                    console.error('[UI] Ошибка поиска:', e);
-                    list.innerHTML = '<div class="error">Ошибка поиска</div>';
-                }
             },
 
             renderSets(sets) {

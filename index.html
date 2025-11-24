@@ -515,6 +515,33 @@
         };
 
         // ==================== API MODULE ====================
+        // Утилита для исправления двойной сериализации JSON
+        const fixDoubleSerialization = (data) => {
+            if (!data) return data;
+            
+            // Если это строка, пытаемся распарсить
+            if (typeof data === 'string') {
+                try {
+                    return JSON.parse(data);
+                } catch (e) {
+                    console.warn('[API] Не удалось распарсить строку:', e);
+                    return data;
+                }
+            }
+            
+            // Если это массив с одним элементом-строкой, содержащей JSON
+            if (Array.isArray(data) && data.length === 1 && typeof data[0] === 'string' && (data[0].includes('[') || data[0].includes('{'))) {
+                try {
+                    return JSON.parse(data[0]);
+                } catch (e) {
+                    console.warn('[API] Не удалось распарсить массив со строкой:', e);
+                    return data;
+                }
+            }
+            
+            return data;
+        };
+        
         const API = {
             async request(endpoint, params = {}, method = 'GET', body = null) {
                 const url = new URL(`${CONFIG.BACKEND_URL}/api/${endpoint}`);
@@ -729,9 +756,12 @@
                         return;
                     }
                     
-                    if (res.groups && res.groups.length > 0) {
-                        console.log(`[App] Загружено групп: ${res.groups.length}`);
-                        UI.renderGroups(res.groups);
+                    // Исправление двойной сериализации
+                    const groups = fixDoubleSerialization(res.groups);
+                    
+                    if (groups && Array.isArray(groups) && groups.length > 0) {
+                        console.log(`[App] Загружено групп: ${groups.length}`);
+                        UI.renderGroups(groups);
                     } else {
                         console.warn('[App] Группы не найдены');
                         listEl.innerHTML = '<div class="error">Группы не найдены</div>';
@@ -755,8 +785,13 @@
                 list.innerHTML = '<div class="loading">Загрузка...</div>';
                 
                 const res = await API.getExercises(group);
-                if (res.exercises) UI.renderExercises(res.exercises);
-                else list.innerHTML = '<div class="error">Нет упражнений</div>';
+                if (res.exercises) {
+                    // Исправление двойной сериализации
+                    const exercises = fixDoubleSerialization(res.exercises);
+                    UI.renderExercises(exercises);
+                } else {
+                    list.innerHTML = '<div class="error">Нет упражнений</div>';
+                }
             },
 
             async loadAllExercises(isSearchMode = false) {
@@ -783,7 +818,11 @@
                     for (const group of groupsRes.groups) {
                         try {
                             const res = await API.getExercises(group);
-                            if (res.exercises) allExercises.push(...res.exercises);
+                            if (res.exercises) {
+                                // Исправление двойной сериализации
+                                const exercises = fixDoubleSerialization(res.exercises);
+                                allExercises.push(...exercises);
+                            }
                         } catch (e) {
                             console.error(`Ошибка для группы ${group}:`, e);
                         }

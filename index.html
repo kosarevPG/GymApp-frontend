@@ -1455,67 +1455,65 @@
             
             // Глобальный поиск на главной (поиск по упражнениям, не по группам)
             // Глобальный поиск на главной (поиск по упражнениям внутри групп)
+            // Глобальный поиск на главной (мгновенный поиск без запросов к серверу)
             async filterGlobal(query) {
                 const q = query.toLowerCase().trim();
                 const list = document.getElementById('groups-list');
                 
+                // 1. Если пусто - показываем Группы (из кэша DOM или перерисовываем)
                 if (q.length === 0) {
-                    // Если пусто - показываем группы
-                    App.loadGroups(); 
+                    // Чтобы не грузить сервер, просто рисуем группы (данные о группах можно тоже закэшировать, но пока так)
+                    if (App.state.groupsCache) {
+                        UI.renderGroups(App.state.groupsCache);
+                    } else {
+                        App.loadGroups(); // Только если совсем нет данных
+                    }
                     return;
                 }
                 
-                // Показываем загрузку
-                list.innerHTML = '<div class="loading">Ищу упражнения...</div>';
+                // 2. Проверяем кэш упражнений
+                if (!App.allExercisesCache || App.allExercisesCache.length === 0) {
+                    // Если кэша нет - загружаем его (один раз)
+                    const success = await App.ensureExercisesLoaded();
+                    if (!success) {
+                        list.innerHTML = '<div class="error">Ошибка поиска</div>';
+                        return;
+                    }
+                }
                 
-                try {
-                    // Загружаем все группы
-                    const groupsRes = await API.getGroups();
-                    let groups = fixDoubleSerialization(groupsRes.groups);
-                    
-                    if (!groups || groups.length === 0) {
-                        list.innerHTML = '<div class="error">Группы не найдены</div>';
-                        return;
-                    }
-                    
-                    // Для каждой группы загружаем упражнения и фильтруем
-                    const groupsWithExercises = [];
-                    
-                    for (const groupName of groups) {
-                        try {
-                            const exercisesRes = await API.getExercises(groupName);
-                            let exercises = fixDoubleSerialization(exercisesRes.exercises);
-                            
-                            if (!exercises) exercises = [];
-                            
-                            // Фильтруем упражнения по запросу
-                            const filteredExercises = exercises.filter(ex => {
-                                const name = typeof ex === 'string' ? ex : ex.name;
-                                return name.toLowerCase().includes(q);
-                            });
-                            
-                            // Добавляем группу только если в ней есть подходящие упражнения
-                            if (filteredExercises.length > 0) {
-                                groupsWithExercises.push({
-                                    name: groupName,
-                                    exercises: filteredExercises
-                                });
-                            }
-                        } catch (e) {
-                            console.error(`Ошибка загрузки упражнений для группы ${groupName}:`, e);
-                        }
-                    }
-                    
-                    // Если ничего не найдено
-                    if (groupsWithExercises.length === 0) {
-                        list.innerHTML = '<div class="loading">Ничего не найдено</div>';
-                        return;
-                    }
-                    
-                    // Рендерим группы с упражнениями
-                    const html = groupsWithExercises.map(group => {
-                        const groupImg = this.getGroupImage(group.name);
-                        const groupImgBlock = groupImg 
+                // 3. Фильтруем в памяти (Мгновенно!)
+                const filtered = App.allExercisesCache.filter(ex => {
+                    return ex.name.toLowerCase().includes(q);
+                });
+                
+                if (filtered.length === 0) {
+                    list.innerHTML = '<div class="loading">Ничего не найдено</div>';
+                    return;
+                }
+                
+                // 4. Рендерим результат
+                const html = filtered.map(ex => {
+                    const image = ex.image || null;
+                    const imgBlock = image 
+                        ? `<img src="${image}" class="list-img" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>`
+                        : `<div class="list-img placeholder" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>ℹ️</div>`;
+
+                    return `
+                        <div class="list-item" onclick='App.selectExercise(${JSON.stringify(ex)})'>
+                            ${imgBlock}
+                            <div class="list-content">
+                                <div>
+                                    <span class="list-title">${ex.name}</span>
+                                    <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">${ex.group || ''}</div>
+                                </div>
+                                <span class="list-arrow">›</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                list.innerHTML = `<div class="list-container">${html}</div>`;
+            }, 
                             ? `<img src="${groupImg}" class="list-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                <div class="list-img placeholder" style="display:none;">${group.name[0]}</div>`
                             : `<div class="list-img placeholder">${group.name[0]}</div>`;

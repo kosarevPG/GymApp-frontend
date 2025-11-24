@@ -1407,10 +1407,12 @@
                     return;
                 }
                 
-                // Фильтруем кэш упражнений по названию
+                // Фильтруем кэш упражнений ТОЛЬКО по названию упражнения (не по группам!)
                 const filtered = App.allExercisesCache.filter(ex => {
-                    const name = typeof ex === 'string' ? ex : ex.name;
-                    return name.toLowerCase().includes(q);
+                    // Извлекаем именно название упражнения
+                    const exerciseName = typeof ex === 'string' ? ex : (ex.name || ex['Exercise Name'] || '');
+                    // Ищем только по названию упражнения, игнорируя группу мышц
+                    return exerciseName.toLowerCase().includes(q);
                 });
                 
                 // Если ничего не найдено

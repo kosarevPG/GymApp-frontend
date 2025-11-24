@@ -1455,47 +1455,92 @@
                 Haptic.impact('light');
                 UI.toggleModal('modalAddExercise', true);
                 const list = document.getElementById('add-exercise-list');
+                
+                if (!list) {
+                    console.error('[App] Элемент add-exercise-list не найден');
+                    return;
+                }
+                
                 list.innerHTML = '<div class="loading">Загрузка групп...</div>';
                 
                 try {
                     // 1. Загружаем группы мышц (это быстро)
                     const res = await API.getGroups();
                     
-                    if (!res.groups || res.groups.length === 0) {
-                        list.innerHTML = '<div class="error">Ошибка загрузки</div>';
+                    if (res.error) {
+                        console.error('[App] Ошибка загрузки групп:', res.message);
+                        list.innerHTML = `<div class="error">Ошибка загрузки: ${res.message || 'Проверьте подключение'}</div>`;
+                        return;
+                    }
+                    
+                    // 2. Исправление двойной сериализации (как в loadGroups)
+                    const groups = fixDoubleSerialization(res.groups);
+                    
+                    if (!groups || !Array.isArray(groups) || groups.length === 0) {
+                        console.warn('[App] Группы не найдены или неверный формат:', groups);
+                        list.innerHTML = '<div class="error">Группы не найдены</div>';
                         return;
                     }
 
-                    // 2. Рендерим группы
+                    // 3. Рендерим группы
                     // При клике на группу мы будем загружать упражнения этой группы В ЭТО ЖЕ ОКНО
-                    list.innerHTML = res.groups.map(group => `
-                        <div class="list-item" onclick="App.loadExercisesForModal('${group}')">
-                            <div style="flex-grow:1; font-weight:600;">${group}</div>
-                            <div style="color:#667eea">›</div>
-                        </div>
-                    `).join('');
+                    // Убеждаемся, что group - это строка
+                    list.innerHTML = groups.map(group => {
+                        const groupName = typeof group === 'string' ? group : (group.name || String(group));
+                        // Экранируем кавычки для безопасной вставки в onclick
+                        const safeGroupName = groupName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                        return `
+                            <div class="list-item" onclick="App.loadExercisesForModal('${safeGroupName}')">
+                                <div style="flex-grow:1; font-weight:600;">${groupName}</div>
+                                <div style="color:#667eea">›</div>
+                            </div>
+                        `;
+                    }).join('');
                     
                 } catch (e) {
-                    console.error(e);
-                    list.innerHTML = '<div class="error">Ошибка сети</div>';
+                    console.error('[App] Ошибка в showAddExerciseModal:', e);
+                    list.innerHTML = '<div class="error">Ошибка сети. Попробуйте позже.</div>';
                 }
             },
 
             // Новая функция: загрузка упражнений внутрь модалки
             async loadExercisesForModal(group) {
                 const list = document.getElementById('add-exercise-list');
+                
+                if (!list) {
+                    console.error('[App] Элемент add-exercise-list не найден');
+                    return;
+                }
+                
+                if (!group) {
+                    console.error('[App] Не указана группа мышц');
+                    list.innerHTML = '<div class="error">Ошибка: не указана группа</div>';
+                    return;
+                }
+                
                 list.innerHTML = '<div class="loading">Загрузка упражнений...</div>';
                 
                 try {
                     const res = await API.getExercises(group);
                     
+                    if (res.error) {
+                        console.error('[App] Ошибка загрузки упражнений:', res.message);
+                        list.innerHTML = `<div class="error">Ошибка загрузки: ${res.message || 'Проверьте подключение'}</div>`;
+                        return;
+                    }
+                    
                     if (!res.exercises) {
-                        list.innerHTML = '<div class="error">Пусто</div>';
+                        list.innerHTML = '<div class="error">Упражнения не найдены</div>';
                         return;
                     }
                     
                     // Исправление двойной сериализации
                     const exercises = fixDoubleSerialization(res.exercises);
+                    
+                    if (!exercises || !Array.isArray(exercises) || exercises.length === 0) {
+                        list.innerHTML = '<div class="error">Упражнения не найдены</div>';
+                        return;
+                    }
                     
                     // Рендерим список упражнений
                     // Добавляем кнопку "Назад к группам" сверху
@@ -1506,24 +1551,28 @@
                     `;
                     
                     const exercisesHtml = exercises.map(ex => {
-                        const name = typeof ex === 'string' ? ex : ex.name;
+                        const name = typeof ex === 'string' ? ex : (ex.name || String(ex));
                         // Фильтруем, если такое упражнение уже есть в суперсете
-                        const isAdded = App.state.activeExercises.some(active => active.name === name);
+                        const isAdded = App.state.activeExercises && App.state.activeExercises.some(active => active.name === name);
                         
                         if (isAdded) return ''; // Не показываем уже добавленные
                         
+                        // Безопасная сериализация объекта упражнения
+                        const exObj = typeof ex === 'string' ? {name: name} : ex;
+                        
                         return `
-                            <div class="list-item" onclick='App.addExerciseToSuperset(${JSON.stringify(ex)})'>
+                            <div class="list-item" onclick='App.addExerciseToSuperset(${JSON.stringify(exObj).replace(/'/g, "&#39;")})'>
                                 <div style="flex-grow:1">${name}</div>
                                 <div style="color:#28a745; font-weight:bold;">+</div>
                             </div>
                         `;
-                    }).join('');
+                    }).filter(html => html.length > 0).join('');
                     
                     list.innerHTML = backBtn + (exercisesHtml || '<div style="padding:15px; text-align:center">Все упражнения уже добавлены</div>');
                     
                 } catch (e) {
-                    list.innerHTML = '<div class="error">Ошибка</div>';
+                    console.error('[App] Ошибка в loadExercisesForModal:', e);
+                    list.innerHTML = '<div class="error">Ошибка загрузки. Попробуйте позже.</div>';
                 }
             },
 

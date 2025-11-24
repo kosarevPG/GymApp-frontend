@@ -1388,7 +1388,8 @@
             },
             
             // Глобальный поиск на главной (поиск по упражнениям, не по группам)
-            filterGlobal(query) {
+            // Глобальный поиск на главной (поиск по упражнениям внутри групп)
+            async filterGlobal(query) {
                 const q = query.toLowerCase().trim();
                 const list = document.getElementById('groups-list');
                 
@@ -1398,49 +1399,97 @@
                     return;
                 }
                 
-                // Если начали вводить - переключаемся на "поиск по всем упражнениям"
-                if (!App.allExercisesCache || App.allExercisesCache.length === 0) {
-                    // Запускаем загрузку всего (покажем лоадер)
-                    list.innerHTML = '<div class="loading">Ищу упражнения...</div>';
-                    // loadAllExercises(true) автоматически вызовет filterGlobal после загрузки
-                    App.loadAllExercises(true);
-                    return;
-                }
+                // Показываем загрузку
+                list.innerHTML = '<div class="loading">Ищу упражнения...</div>';
                 
-                // Фильтруем кэш упражнений ТОЛЬКО по названию упражнения (не по группам!)
-                const filtered = App.allExercisesCache.filter(ex => {
-                    // Извлекаем именно название упражнения
-                    const exerciseName = typeof ex === 'string' ? ex : (ex.name || ex['Exercise Name'] || '');
-                    // Ищем только по названию упражнения, игнорируя группу мышц
-                    return exerciseName.toLowerCase().includes(q);
-                });
-                
-                // Если ничего не найдено
-                if (filtered.length === 0) {
-                    list.innerHTML = '<div class="loading">Ничего не найдено</div>';
-                    return;
-                }
-                
-                // Рендерим как список упражнений прямо на экране групп
-                const html = filtered.map(ex => {
-                    const name = typeof ex === 'string' ? ex : ex.name;
-                    const image = (typeof ex === 'object' && ex.image) ? ex.image : null;
-                    const imgBlock = image 
-                        ? `<img src="${image}" class="list-img" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>`
-                        : `<div class="list-img placeholder" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>ℹ️</div>`;
-
-                    return `
-                        <div class="list-item" onclick='App.selectExercise(${JSON.stringify(ex)})'>
-                            ${imgBlock}
-                            <div class="list-content">
-                                <span class="list-title">${name}</span>
-                                <span class="list-arrow">›</span>
+                try {
+                    // Загружаем все группы
+                    const groupsRes = await API.getGroups();
+                    let groups = fixDoubleSerialization(groupsRes.groups);
+                    
+                    if (!groups || groups.length === 0) {
+                        list.innerHTML = '<div class="error">Группы не найдены</div>';
+                        return;
+                    }
+                    
+                    // Для каждой группы загружаем упражнения и фильтруем
+                    const groupsWithExercises = [];
+                    
+                    for (const groupName of groups) {
+                        try {
+                            const exercisesRes = await API.getExercises(groupName);
+                            let exercises = fixDoubleSerialization(exercisesRes.exercises);
+                            
+                            if (!exercises) exercises = [];
+                            
+                            // Фильтруем упражнения по запросу
+                            const filteredExercises = exercises.filter(ex => {
+                                const name = typeof ex === 'string' ? ex : ex.name;
+                                return name.toLowerCase().includes(q);
+                            });
+                            
+                            // Добавляем группу только если в ней есть подходящие упражнения
+                            if (filteredExercises.length > 0) {
+                                groupsWithExercises.push({
+                                    name: groupName,
+                                    exercises: filteredExercises
+                                });
+                            }
+                        } catch (e) {
+                            console.error(`Ошибка загрузки упражнений для группы ${groupName}:`, e);
+                        }
+                    }
+                    
+                    // Если ничего не найдено
+                    if (groupsWithExercises.length === 0) {
+                        list.innerHTML = '<div class="loading">Ничего не найдено</div>';
+                        return;
+                    }
+                    
+                    // Рендерим группы с упражнениями
+                    const html = groupsWithExercises.map(group => {
+                        const groupImg = this.getGroupImage(group.name);
+                        const groupImgBlock = groupImg 
+                            ? `<img src="${groupImg}" class="list-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                               <div class="list-img placeholder" style="display:none;">${group.name[0]}</div>`
+                            : `<div class="list-img placeholder">${group.name[0]}</div>`;
+                        
+                        const exercisesHtml = group.exercises.map(ex => {
+                            const name = typeof ex === 'string' ? ex : ex.name;
+                            const image = (typeof ex === 'object' && ex.image) ? ex.image : null;
+                            const imgBlock = image 
+                                ? `<img src="${image}" class="list-img" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>`
+                                : `<div class="list-img placeholder" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>ℹ️</div>`;
+                            
+                            return `
+                                <div class="list-item" style="padding-left: 40px;" onclick='App.selectExercise(${JSON.stringify(ex)})'>
+                                    ${imgBlock}
+                                    <div class="list-content">
+                                        <span class="list-title">${name}</span>
+                                        <span class="list-arrow">›</span>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                        
+                        return `
+                            <div style="margin-bottom: 20px;">
+                                <div class="list-item" style="background: var(--card-bg); border-radius: 8px; margin-bottom: 8px;">
+                                    ${groupImgBlock}
+                                    <div class="list-content">
+                                        <span class="list-title" style="font-weight: 700;">${group.name}</span>
+                                    </div>
+                                </div>
+                                ${exercisesHtml}
                             </div>
-                        </div>
-                    `;
-                }).join('');
-                
-                list.innerHTML = html || '<div class="loading">Ничего не найдено</div>';
+                        `;
+                    }).join('');
+                    
+                    list.innerHTML = html;
+                } catch (e) {
+                    console.error('[UI] Ошибка поиска:', e);
+                    list.innerHTML = '<div class="error">Ошибка поиска</div>';
+                }
             },
 
             renderSets(sets) {

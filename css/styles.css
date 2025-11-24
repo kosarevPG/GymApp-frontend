@@ -180,16 +180,51 @@ body {
 }
 .exercise-title { font-size: 17px; font-weight: 700; }
 
+.workout-container {
+    padding: 0;
+}
+
 .set-row {
-    display: grid; grid-template-columns: 30px 1fr 1fr 1fr 30px;
-    gap: 8px; align-items: center; margin-bottom: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 8px 0;
 }
 .set-row.completed { opacity: 0.4; }
 
+.set-inputs-group {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    flex-wrap: wrap;
+}
+
+.set-input-wrapper {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.input-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-align: center;
+    font-weight: 500;
+}
+
 .set-input {
-    background: var(--input-bg); border: none; color: var(--text-color);
-    border-radius: 8px; padding: 10px 5px; text-align: center;
-    font-size: 17px; width: 100%;
+    background: var(--input-bg); 
+    border: none; 
+    color: var(--text-color);
+    border-radius: 8px; 
+    padding: 10px 8px; 
+    text-align: center;
+    font-size: 17px; 
+    width: 100%;
+    min-width: 0;
 }
 
 .set-checkbox {
@@ -212,13 +247,30 @@ body {
 }
 .note-input { background: transparent; border: none; color: #ffd60a; width: 100%; font-size: 14px; }
 
+.exercise-sets {
+    margin-bottom: 12px;
+}
+
 .stats-row {
-    grid-column: 2 / span 3; display: flex; justify-content: space-between;
-    font-size: 11px; margin-top: -4px; padding: 0 4px;
+    display: flex; 
+    justify-content: space-between;
+    font-size: 11px; 
+    margin-top: 4px; 
+    padding: 0 4px;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 .stat-1rm { color: var(--text-secondary); }
+.stat-delta { 
+    display: none;
+    color: var(--text-secondary);
+}
+.stat-delta.visible { 
+    display: inline-block;
+}
 .stat-delta.positive { color: var(--success); }
 .stat-delta.negative { color: var(--danger); }
+.stat-delta.neutral { color: var(--text-secondary); }
 
 /* --- Buttons --- */
 .btn-add-set-small {
@@ -238,9 +290,24 @@ body {
     border-radius: 8px; padding: 6px 10px; font-weight: bold; cursor: pointer;
 }
 .set-remove {
-    background: rgba(255, 69, 58, 0.2); color: var(--danger); border: none;
-    width: 28px; height: 28px; border-radius: 6px; font-size: 18px;
-    display: flex; justify-content: center; align-items: center; cursor: pointer; justify-self: center;
+    background: rgba(255, 69, 58, 0.2); 
+    color: var(--danger); 
+    border: none;
+    width: 28px; 
+    height: 28px; 
+    border-radius: 6px; 
+    font-size: 18px;
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 20px;
+}
+
+.set-remove.hidden,
+.hidden {
+    display: none !important;
 }
 
 /* --- MODALS (FIXED) --- */
@@ -381,5 +448,77 @@ body {
 @keyframes skeleton-loading {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
+}
+
+/* Мобильная адаптивность */
+@media (max-width: 480px) {
+    .set-inputs-group {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .set-input-wrapper {
+        width: 100%;
+    }
+    
+    .set-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .set-checkbox {
+        align-self: flex-start;
+        margin-bottom: 8px;
+    }
+    
+    .set-remove {
+        align-self: flex-end;
+        margin-top: 0;
+    }
+    
+    .stats-row {
+        width: 100%;
+        margin-top: 8px;
+    }
+    
+    .timer-card {
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .timer-display {
+        font-size: 32px;
+    }
+    
+    .exercise-card {
+        margin: 0 12px 20px 12px;
+        padding: 16px;
+    }
+    
+    .btn-add-exercise-global {
+        width: calc(100% - 24px);
+        margin: 10px 12px 40px 12px;
+    }
+}
+
+/* Очень маленькие экраны */
+@media (max-width: 360px) {
+    .navbar {
+        padding: 10px 12px;
+    }
+    
+    .btn-nav {
+        font-size: 15px;
+    }
+    
+    .exercise-card {
+        margin: 0 8px 16px 8px;
+        padding: 12px;
+    }
+    
+    .timer-display {
+        font-size: 28px;
+    }
 }
 

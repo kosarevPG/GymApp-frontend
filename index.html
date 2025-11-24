@@ -46,6 +46,7 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            height: 44px; /* Фиксируем высоту как в iOS */
         }
         
         .navbar-center { 
@@ -71,7 +72,7 @@
             padding: 0 16px 10px 16px;
             background: var(--bg-color);
             position: sticky;
-            top: 50px;
+            top: 44px; /* Отступ равен высоте navbar */
             z-index: 90;
         }
         
@@ -675,27 +676,79 @@
             opacity: 0.7;
         }
         
-        /* Modal */
-        .modal-overlay { 
-            background: rgba(0,0,0,0.85); 
-            backdrop-filter: blur(5px); 
+        /* --- MODAL FIXES (Самое важное) --- */
+        
+        /* Общий стиль для всех модалок (фоложка) */
+        .modal, .modal-overlay {
+            display: none; /* СКРЫТО ПО УМОЛЧАНИЮ */
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(5px);
+            z-index: 2000; /* Поверх всего */
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
         }
         
-        .modal-card { 
-            background: #1c1c1e; 
-            color: white; 
-            border-radius: 20px; 
+        /* Классы для показа */
+        .modal.active, .modal-overlay.open {
+            display: flex;
         }
         
-        .modal-header { 
-            border-bottom: 1px solid #38383a; 
-            padding-bottom: 15px; 
+        .modal-card, .modal-content {
+            background: var(--card-bg);
+            color: var(--text-color);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 350px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        
+        .modal-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--separator);
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+        }
+        
+        .modal-title, h3 { 
+            margin: 0; 
+            font-size: 18px; 
+            font-weight: 600; 
         }
         
         .modal-close { 
+            background: none; 
+            border: none; 
             color: var(--accent); 
-            font-weight: 600; 
-            font-size: 16px; 
+            font-size: 24px; 
+            cursor: pointer; 
+            padding: 0; 
+            line-height: 1; 
+        }
+        
+        .modal-body { 
+            padding: 20px; 
+        }
+        
+        .modal-img {
+            width: 100%; 
+            border-radius: 8px;
+            margin-bottom: 15px; 
+            object-fit: cover;
+            background: var(--input-bg); 
+            min-height: 200px;
+        }
+        
+        .modal-desc { 
+            font-size: 15px; 
+            line-height: 1.5; 
+            color: var(--text-color); 
+            margin: 0; 
         }
         
         .modal-img {
@@ -738,7 +791,7 @@
         <div class="navbar-left">
             <button class="btn-nav" id="btnBack">← Назад</button>
         </div>
-        <div class="navbar-center" id="navbarTitle">GymApp</div>
+        <div class="navbar-center" id="navbarTitle"></div>
         <div class="navbar-right">
             <button class="btn-nav hidden" id="btnHistory">📖 История</button>
         </div>

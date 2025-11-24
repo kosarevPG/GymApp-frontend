@@ -12,12 +12,13 @@
         :root {
             --bg-color: #000000;
             --card-bg: #1c1c1e;
+            --input-bg: #2c2c2e;
             --text-color: #ffffff;
             --text-secondary: #8e8e93;
-            --accent: #0a84ff; /* Синий как в iOS */
-            --separator: #38383a;
+            --accent: #0a84ff;
             --danger: #ff453a;
             --success: #30d158;
+            --separator: #2c2c2e;
         }
 
         * { 
@@ -32,61 +33,73 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0; 
-            padding-bottom: 40px;
-            touch-action: manipulation;
+            padding-bottom: 80px;
         }
         
         /* Navbar */
         .navbar {
             background: var(--bg-color);
-            padding: 10px 16px;
+            padding: 12px 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             position: sticky;
             top: 0;
             z-index: 100;
-            border-bottom: 1px solid var(--separator);
         }
         
-        .navbar-left {
-            width: 80px;
+        .navbar-center { 
+            font-size: 17px; 
+            font-weight: 600; 
         }
         
-        .navbar-center {
-            flex: 1;
-            text-align: center;
-            font-size: 17px;
-            font-weight: 600;
-            color: var(--text-color);
+        .btn-nav { 
+            background: none; 
+            border: none; 
+            color: var(--accent); 
+            font-size: 17px; 
+            cursor: pointer; 
+            padding: 0; 
         }
         
-        .navbar-right {
-            width: 80px;
-            text-align: right;
+        .btn-nav.hidden { 
+            visibility: hidden; 
         }
         
-        .btn-nav {
-            background: none;
+        /* Search Bar */
+        .search-wrapper {
+            padding: 0 16px 10px 16px;
+            background: var(--bg-color);
+            position: sticky;
+            top: 50px;
+            z-index: 90;
+        }
+        
+        .search-input {
+            width: 100%;
+            background: var(--input-bg);
             border: none;
-            padding: 8px 12px;
-            font-size: 16px;
-            cursor: pointer;
-            color: var(--accent);
-            font-weight: 600;
+            border-radius: 10px;
+            padding: 12px 12px 12px 40px;
+            color: var(--text-color);
+            font-size: 17px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: 12px center;
         }
         
-        .btn-nav:active {
-            opacity: 0.6;
+        .search-input:focus { 
+            outline: none; 
+            background-color: #3a3a3c; 
         }
         
-        .btn-nav.hidden {
-            visibility: hidden;
+        .search-input::placeholder { 
+            color: #636366; 
         }
         
         /* Container */
         .container {
-            padding: 0; /* Убрали отступы, чтобы списки были на всю ширину */
+            padding: 0;
         }
         
         /* Screen */
@@ -105,93 +118,60 @@
             to { opacity: 1; }
         }
         
-        /* Search Bar */
-        .search-wrapper {
-            padding: 10px 16px;
-            background: var(--bg-color);
-            position: sticky;
-            top: 45px; /* Высота навбара */
-            z-index: 90;
+        /* Lists */
+        .list-container { 
+            padding: 0 16px; 
         }
         
-        .search-input {
-            width: 100%;
-            background: var(--card-bg);
-            border: none;
-            border-radius: 10px;
-            padding: 10px 12px 10px 36px; /* Отступ слева под иконку */
-            color: var(--text-color);
-            font-size: 16px;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: 10px center;
-        }
-        
-        .search-input:focus {
-            outline: none;
-            background-color: #2c2c2e;
-        }
-        
-        /* List Styles (iOS style) */
-        .list-container {
-            display: flex;
-            flex-direction: column;
-            padding: 0 16px;
-        }
-
         .list-item {
             display: flex;
             align-items: center;
-            padding: 12px 0;
-            cursor: pointer;
+            padding: 16px 0;
             border-bottom: 1px solid var(--separator);
         }
         
-        .list-item:last-child {
-            border-bottom: none;
+        .list-item:last-child { 
+            border-bottom: none; 
         }
         
-        .list-item:active {
-            opacity: 0.6;
-        }
-
-        /* Картинка в списке */
+        /* Картинка слева (теперь она открывает инфо) */
         .list-img {
-            width: 60px;
-            height: 60px;
+            width: 64px; 
+            height: 64px;
+            border-radius: 8px;
             object-fit: cover;
-            border-radius: 4px;
             background: #333;
-            margin-right: 15px;
+            margin-right: 16px;
             flex-shrink: 0;
+            cursor: help;
         }
         
-        /* Если картинки нет, показываем заглушку */
         .list-img.placeholder {
-            display: flex;
-            align-items: center;
+            display: flex; 
+            align-items: center; 
             justify-content: center;
-            font-size: 24px;
-            background: #2c2c2e;
+            font-size: 24px; 
+            background: var(--input-bg); 
             color: #555;
         }
-
+        
         .list-content {
             flex: 1;
-            display: flex;
-            align-items: center;
+            display: flex; 
+            align-items: center; 
             justify-content: space-between;
+            cursor: pointer;
         }
         
-        .list-title {
-            font-size: 17px;
-            font-weight: 500;
-            color: var(--text-color);
+        .list-title { 
+            font-size: 17px; 
+            font-weight: 500; 
+            line-height: 1.3; 
         }
         
-        .list-arrow {
-            color: var(--text-secondary);
-            font-size: 14px;
+        .list-arrow { 
+            color: #3a3a3c; 
+            font-size: 20px; 
         }
         
         .groups-container {
@@ -222,195 +202,235 @@
             opacity: 0.7;
         }
         
-        /* Screen 3: Workout */
-        .workout-container {
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 12px;
-            margin: 12px 16px;
-        }
+        /* --- Workout Screen (Redesign) --- */
         
-        /* Карточка таймера */
+        /* Таймер */
         .timer-card {
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 15px;
+            background: var(--bg-color);
+            padding: 10px 16px;
             margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            gap: 15px;
         }
         
-        /* Цифры времени */
-        .timer-display {
-            font-size: 32px;
-            font-weight: 700;
-            font-variant-numeric: tabular-nums;
-            color: var(--text-color);
-            letter-spacing: 1px;
-        }
-        
-        /* Кнопки */
-        .timer-controls {
-            display: flex;
-            gap: 10px;
+        .timer-display { 
+            font-size: 36px; 
+            font-weight: 700; 
+            font-variant-numeric: tabular-nums; 
+            letter-spacing: 1px; 
         }
         
         .timer-btn {
-            border: none;
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 20px;
+            font-size: 15px; 
+            font-weight: 600; 
             cursor: pointer;
-            transition: all 0.2s;
         }
         
-        /* Стиль кнопки Старт/Стоп */
-        .timer-btn.start {
-            background-color: #2c2c2e;
-            color: var(--accent);
-        }
-        .timer-btn.start.active {
-            background-color: #2c2c2e;
-            color: var(--danger);
+        .timer-btn.start { 
+            background: rgba(10, 132, 255, 0.15); 
+            color: var(--accent); 
         }
         
-        /* Стиль кнопки Сброс */
-        .timer-btn.reset {
-            background-color: #2c2c2e;
-            color: var(--text-secondary);
+        .timer-btn.start.active { 
+            background: rgba(255, 69, 58, 0.15); 
+            color: var(--danger); 
         }
         
-        .set-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px;
-            margin-bottom: 8px;
-            background: #000;
-            border-radius: 8px;
-            border: 1px solid var(--separator);
-            transition: all 0.3s;
-            flex-wrap: wrap;
-            padding-bottom: 8px;
+        .timer-btn.reset { 
+            background: var(--input-bg); 
+            color: var(--text-secondary); 
         }
         
-        .set-row.completed {
-            background: #1a2e1a;
-            border-color: var(--success);
-            opacity: 0.8;
-        }
-        
-        .set-row.completed input {
-            background: #0d1a0d;
-            color: var(--success);
-        }
-        
-        .set-checkbox {
-            width: 24px;
-            height: 24px;
-            cursor: pointer;
-            flex-shrink: 0;
-            accent-color: var(--success);
-        }
-        
-        .set-inputs-group {
-            flex: 1;
-            display: flex;
-            gap: 6px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        
-        .set-input-wrapper {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        
-        .set-input {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid var(--separator);
-            border-radius: 6px;
-            font-size: 14px;
-            text-align: center;
-            background: #000;
-            color: var(--text-color);
-            -webkit-appearance: none;
-            -moz-appearance: textfield;
-            appearance: none;
-            touch-action: manipulation;
-            user-select: text;
-            -webkit-user-select: text;
-        }
-        
-        .set-input::-webkit-outer-spin-button,
-        .set-input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-        
-        .set-input:focus {
-            outline: none;
-            border-color: var(--accent);
-            background: #000;
-        }
-        
-        .set-input:disabled {
-            background: #0a0a0a;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-        
-        .set-remove {
-            background: var(--danger);
-            color: white;
-            border: none;
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .workout-container {
             padding: 0;
         }
         
-        .set-remove:active {
-            opacity: 0.7;
+        /* Карточка упражнения */
+        .exercise-card {
+            background: var(--card-bg);
+            margin: 0 16px 24px 16px;
+            border-radius: 16px;
+            padding: 20px;
+            position: relative;
+        }
+        
+        /* Поле заметки (Минимализм) */
+        .note-wrapper {
+            display: flex; 
+            align-items: center; 
+            gap: 10px;
+            background: rgba(255, 214, 10, 0.1);
+            border: 1px solid rgba(255, 214, 10, 0.3);
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .note-icon { 
+            font-size: 14px; 
+            opacity: 0.7; 
+        }
+        
+        .note-input {
+            background: transparent; 
+            border: none; 
+            color: #ffd60a;
+            font-size: 14px; 
+            width: 100%;
+        }
+        
+        .note-input::placeholder { 
+            color: rgba(255, 214, 10, 0.5); 
+        }
+        
+        /* Сетка подходов */
+        .set-row {
+            display: grid;
+            grid-template-columns: 30px 1fr 1fr 1fr 30px;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .set-row.completed { 
+            opacity: 0.4; 
+        }
+        
+        /* Заголовки колонок (Вес, Повт...) */
+        .sets-header {
+            display: grid;
+            grid-template-columns: 30px 1fr 1fr 1fr 30px;
+            gap: 10px;
+            margin-bottom: 8px;
+            padding: 0 2px;
+        }
+        
+        .col-title {
+            font-size: 12px; 
+            color: var(--text-secondary); 
+            text-align: center;
+        }
+        
+        /* Инпуты */
+        .set-input {
+            background: var(--input-bg);
+            border: 1px solid transparent;
+            color: white;
+            border-radius: 8px;
+            padding: 12px 5px;
+            text-align: center;
+            font-size: 17px;
+            width: 100%;
+            font-weight: 500;
+        }
+        
+        .set-input:focus { 
+            background: #3a3a3c; 
+            border-color: var(--text-secondary); 
+            outline: none; 
+        }
+        
+        .set-input::placeholder { 
+            color: #3a3a3c; 
+        }
+        
+        /* Чекбокс */
+        .set-checkbox {
+            width: 24px; 
+            height: 24px;
+            border-radius: 6px;
+            border: 2px solid var(--text-secondary);
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+            justify-self: center;
+        }
+        
+        .set-checkbox:checked {
+            background: var(--success);
+            border-color: var(--success);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+            background-size: 80%; 
+            background-repeat: no-repeat; 
+            background-position: center;
+        }
+        
+        /* Удаление */
+        .set-remove {
+            background: rgba(255, 69, 58, 0.2); 
+            color: var(--danger);
+            border: none; 
+            width: 28px; 
+            height: 28px; 
+            border-radius: 6px;
+            font-size: 18px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            justify-self: center; 
+            padding: 0; 
+            cursor: pointer;
         }
         
         .set-remove.hidden {
             display: none;
         }
         
-        .btn-add-set {
-            width: 100%;
-            padding: 12px;
-            background: var(--accent);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
+        /* Статистика (1ПМ) */
+        .stats-row {
+            grid-column: 2 / span 3;
+            display: flex; 
+            justify-content: space-between;
+            font-size: 11px; 
+            margin-top: -4px; 
+            padding: 0 4px;
+        }
+        
+        .stat-1rm { 
+            color: var(--text-secondary); 
+        }
+        
+        .stat-delta.positive { 
+            color: var(--success); 
+        }
+        
+        .stat-delta.negative { 
+            color: var(--danger); 
+        }
+        
+        /* Кнопка добавить подход */
+        .btn-add-set-small {
+            background: var(--input-bg); 
+            color: var(--accent);
+            border: none; 
+            width: 100%; 
+            padding: 12px; 
+            border-radius: 10px;
+            font-weight: 600; 
+            font-size: 15px; 
+            margin-top: 10px;
+        }
+        
+        /* Глобальная кнопка суперсета */
+        .btn-add-exercise-global {
+            background: var(--card-bg); 
+            color: var(--accent);
+            border: none; 
+            padding: 16px; 
+            border-radius: 12px;
+            font-size: 16px; 
             font-weight: 600;
-            cursor: pointer;
-            margin-top: 8px;
-        }
-        
-        .btn-add-set:active {
-            opacity: 0.7;
-        }
-        
-        .input-label {
-            font-size: 10px;
-            color: var(--text-secondary);
-            text-align: center;
-            margin: 0;
+            width: calc(100% - 32px); 
+            margin: 20px 16px 40px 16px;
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 8px;
         }
         
         /* Modal */
@@ -655,149 +675,27 @@
             opacity: 0.7;
         }
         
-        /* --- Микро-аналитика --- */
-        
-        /* Контейнер для статистики под инпутами */
-        .stats-row {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 4px;
-            margin-top: 6px;
-            font-size: 11px;
-            color: #999;
+        /* Modal */
+        .modal-overlay { 
+            background: rgba(0,0,0,0.85); 
+            backdrop-filter: blur(5px); 
         }
         
-        /* Блок 1ПМ */
-        .stat-1rm {
-            font-weight: 500;
+        .modal-card { 
+            background: #1c1c1e; 
+            color: white; 
+            border-radius: 20px; 
         }
         
-        /* Блок Дельты (изменения веса) */
-        .stat-delta {
-            font-weight: 700;
-            opacity: 0; /* Скрыто по умолчанию */
-            transition: opacity 0.2s;
-        }
-        .stat-delta.visible { opacity: 1; }
-        .stat-delta.positive { color: #2e7d32; } /* Зеленый */
-        .stat-delta.negative { color: #d32f2f; } /* Красный */
-        .stat-delta.neutral { color: #999; }     /* Серый */
-        
-        /* Корректировка высоты строки, чтобы статистика влезала */
-        .set-row {
-            flex-wrap: wrap; /* Разрешаем перенос элементов */
-            padding-bottom: 8px;
-        }
-        .set-inputs-group {
-            flex-wrap: wrap;
+        .modal-header { 
+            border-bottom: 1px solid #38383a; 
+            padding-bottom: 15px; 
         }
         
-        /* Поле для заметок */
-        .note-wrapper {
-            background: #2c2c1a;
-            padding: 8px 12px;
-            border-radius: 8px;
-            margin: 0 0 12px 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border: 1px solid #4a4a2a;
-        }
-        
-        .note-icon {
-            font-size: 16px;
-        }
-        
-        .note-input {
-            border: none;
-            background: transparent;
-            width: 100%;
-            font-size: 14px;
-            color: var(--text-color);
-            outline: none;
-        }
-        .note-input::placeholder {
-            color: var(--text-secondary);
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: var(--text-secondary);
-            font-size: 16px;
-        }
-        
-        .error {
-            background: #2c1a1a;
-            border: 2px solid var(--danger);
-            border-radius: 12px;
-            padding: 16px;
-            margin: 20px;
-            color: var(--danger);
-            text-align: center;
-        }
-        
-        /* Модальное окно для справочника */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            backdrop-filter: blur(5px);
-        }
-        
-        .modal-overlay.open {
-            display: flex;
-            animation: fadeIn 0.2s;
-        }
-        
-        .modal-card {
-            background: var(--card-bg);
-            color: var(--text-color);
-            width: 90%;
-            max-width: 400px;
-            border-radius: 20px;
-            padding: 20px;
-            position: relative;
-            max-height: 85vh;
-            overflow-y: auto;
-        }
-        
-        .modal-card .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        
-        .modal-card .modal-header h3 {
-            margin: 0;
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text-color);
-        }
-        
-        .modal-card .modal-close {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: var(--text-secondary);
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .modal-body {
-            display: flex;
-            flex-direction: column;
+        .modal-close { 
+            color: var(--accent); 
+            font-weight: 600; 
+            font-size: 16px; 
         }
         
         .modal-img {
@@ -817,29 +715,20 @@
             margin: 0;
         }
         
-        /* Кнопка Info в списке */
-        .info-btn {
-            background: #2c2c2e;
-            color: var(--accent);
-            border: none;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            font-weight: bold;
-            font-size: 18px;
-            margin-left: 10px;
-            cursor: pointer;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
+        /* Utils */
+        .loading { 
+            color: var(--text-secondary); 
+            margin-top: 40px; 
         }
         
-        .info-btn:active {
-            background: var(--accent);
-            color: white;
-            transform: scale(0.95);
+        .error {
+            background: #2c1a1a;
+            border: 2px solid var(--danger);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 20px;
+            color: var(--danger);
+            text-align: center;
         }
     </style>
 </head>
@@ -858,31 +747,33 @@
     <div class="container">
         <!-- Screen 1: Groups -->
         <div id="screen-groups" class="screen active">
-            <div id="groups-list" class="loading">Загрузка групп мышц...</div>
+            <div class="search-wrapper">
+                <input type="text" id="searchGroups" class="search-input" 
+                       placeholder="Поиск упражнений" autocomplete="off" 
+                       oninput="UI.filterGlobal(this.value)">
+            </div>
+            <div id="groups-list" class="list-container loading">Загрузка...</div>
         </div>
         
         <!-- Screen 2: Exercises -->
         <div id="screen-exercises" class="screen">
             <div class="search-wrapper">
                 <input type="text" id="searchExercises" class="search-input" 
-                       placeholder="Поиск" autocomplete="off" 
+                       placeholder="Найти в этой группе" autocomplete="off" 
                        oninput="UI.filterExercises(this.value)">
             </div>
-            <div id="exercises-list" class="loading">Загрузка упражнений...</div>
+            <div id="exercises-list" class="list-container loading">Загрузка...</div>
         </div>
         
         <!-- Screen 3: Workout -->
         <div id="screen-workout" class="screen">
             <div class="workout-container">
                 <div class="timer-card">
-                    <div class="timer-display" id="timerDisplay">00:00.00</div>
-                    <div class="timer-controls">
-                        <button class="timer-btn start" id="timerStartBtn">Старт</button>
-                        <button class="timer-btn reset" id="timerResetBtn">Сброс</button>
-                    </div>
+                    <div class="timer-display" id="timerDisplay">00:00</div>
+                    <button class="timer-btn start" id="timerStartBtn">Старт</button>
+                    <button class="timer-btn reset" id="timerResetBtn">Сброс</button>
                 </div>
                 <div id="sets-container"></div>
-                <button class="btn-add-set" id="btnAddSet" style="display: none;">+ Добавить подход</button>
             </div>
         </div>
     </div>
@@ -1669,30 +1560,25 @@
 
                 const html = list.map(ex => {
                     const name = typeof ex === 'string' ? ex : ex.name;
-                    // Берем картинку из объекта упражнения (Image_URL из таблицы)
                     const image = (typeof ex === 'object' && ex.image) ? ex.image : null;
                     
+                    // Блок картинки (Кликабельный -> Инфо)
                     const imgBlock = image 
-                        ? `<img src="${image}" class="list-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                           <div class="list-img placeholder" style="display:none; background:#222">🏋️</div>`
-                        : `<div class="list-img placeholder" style="background:#222">🏋️</div>`;
+                        ? `<img src="${image}" class="list-img" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>`
+                        : `<div class="list-img placeholder" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>ℹ️</div>`;
 
                     return `
                         <div class="list-item exercise-item" data-name="${name.toLowerCase()}">
                             ${imgBlock}
-                            <div class="list-content">
-                                <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
-                                    <span class="list-title" onclick='App.selectExercise(${JSON.stringify(ex)})'>${name}</span>
-                                </div>
-                                <button class="info-btn" onclick='UI.showInfo(${JSON.stringify(ex)})' style="padding:10px;">
-                                    ℹ️
-                                </button>
+                            <div class="list-content" onclick='App.selectExercise(${JSON.stringify(ex)})'>
+                                <span class="list-title">${name}</span>
+                                <span class="list-arrow">›</span>
                             </div>
                         </div>
                     `;
                 }).join('');
 
-                container.innerHTML = `<div class="list-container">${html}</div>`;
+                container.innerHTML = html;
             },
 
             // Логика Поиска (Фильтрация на лету)
@@ -1709,6 +1595,53 @@
                     }
                 });
             },
+            
+            // Глобальный поиск на главной
+            filterGlobal(query) {
+                const q = query.toLowerCase();
+                const list = document.getElementById('groups-list');
+                
+                if (q.length === 0) {
+                    // Если пусто - показываем группы
+                    App.loadGroups(); 
+                    return;
+                }
+                
+                // Если начали вводить - переключаемся на "поиск по всем упражнениям"
+                if (!App.allExercisesCache) {
+                    // Запускаем загрузку всего (покажем лоадер)
+                    list.innerHTML = '<div class="loading">Ищу...</div>';
+                    App.loadAllExercises(true); // true = return data, don't render screen
+                    return;
+                }
+                
+                // Фильтруем кэш
+                const filtered = App.allExercisesCache.filter(ex => {
+                    const name = typeof ex === 'string' ? ex : ex.name;
+                    return name.toLowerCase().includes(q);
+                });
+                
+                // Рендерим как список упражнений прямо на экране групп
+                const html = filtered.map(ex => {
+                    const name = typeof ex === 'string' ? ex : ex.name;
+                    const image = (typeof ex === 'object' && ex.image) ? ex.image : null;
+                    const imgBlock = image 
+                        ? `<img src="${image}" class="list-img" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>`
+                        : `<div class="list-img placeholder" onclick='event.stopPropagation(); UI.showInfo(${JSON.stringify(ex)})'>ℹ️</div>`;
+
+                    return `
+                        <div class="list-item" onclick='App.selectExercise(${JSON.stringify(ex)})'>
+                            ${imgBlock}
+                            <div class="list-content">
+                                <span class="list-title">${name}</span>
+                                <span class="list-arrow">›</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                list.innerHTML = html || '<div class="loading">Ничего не найдено</div>';
+            }
 
             renderSets(sets) {
                 // Старая функция для обратной совместимости

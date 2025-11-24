@@ -1177,11 +1177,18 @@
                 UI.updateNav(exerciseName, true, true);
                 
                 // Загрузка последнего результата для автозаполнения
-                const res = await API.getHistory(exerciseName, 'last');
+                let historySets = [];
+                let lastNote = "";
                 
-                // Раньше res.sets был массивом, теперь res может быть {sets: [], note: ''}
-                const historySets = res.sets || [];
-                const lastNote = res.note || "";
+                try {
+                    const res = await API.getHistory(exerciseName, 'last');
+                    // Раньше res.sets был массивом, теперь res может быть {sets: [], note: ''}
+                    historySets = (res && res.sets && Array.isArray(res.sets)) ? res.sets : [];
+                    lastNote = (res && res.note) ? String(res.note) : "";
+                } catch (e) {
+                    console.warn('[App] Ошибка загрузки истории:', e);
+                    // Продолжаем с пустыми данными
+                }
                 
                 const initialSets = (historySets.length) 
                     ? historySets.map((s, idx) => {
@@ -1933,11 +1940,15 @@
 
             renderWorkoutScreen() {
                 const container = document.getElementById('sets-container');
-                if (!container) return;
+                if (!container) {
+                    console.error('[UI] sets-container не найден');
+                    return;
+                }
                 
                 // Если упражнений нет (баг), очищаем
                 if (!App.state.activeExercises || App.state.activeExercises.length === 0) {
-                    container.innerHTML = '<div class="error">Ошибка состояния</div>';
+                    console.warn('[UI] activeExercises пуст или не определен');
+                    container.innerHTML = '<div class="error">Ошибка состояния: нет активных упражнений</div>';
                     return;
                 }
                 
@@ -1946,9 +1957,14 @@
                 
                 // Используем requestAnimationFrame для оптимизации рендеринга
                 requestAnimationFrame(() => {
-                
+                try {
                 // Рендерим каждую карточку упражнения
                 const cardsHtml = App.state.activeExercises.map((exBlock, exIndex) => {
+                    // Безопасная проверка структуры exBlock
+                    if (!exBlock || !exBlock.name) {
+                        console.error(`[UI] Некорректный exBlock для индекса ${exIndex}:`, exBlock);
+                        return '<div class="error">Ошибка данных упражнения</div>';
+                    }
                     const exerciseName = exBlock.name;
                     const sets = exBlock.sets || [];
                     
@@ -2015,8 +2031,9 @@
                         `;
                     }).join('');
                     
-                    // Берем текущее значение заметки или пустую строку
-                    const currentNote = exBlock.note || '';
+                    // Берем текущее значение заметки или пустую строку (безопасная проверка)
+                    const currentNote = exBlock.note ? String(exBlock.note) : '';
+                    const safeNoteValue = currentNote.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                     
                     // HTML заметки
                     const noteHtml = `
@@ -2024,7 +2041,7 @@
                             <span class="note-icon">📝</span>
                             <input type="text" class="note-input" 
                                 placeholder="Настройки (напр. Сиденье 4)" 
-                                value="${currentNote.replace(/"/g, '&quot;')}"
+                                value="${safeNoteValue}"
                                 oninput="App.updateNote(${exIndex}, this.value)">
                         </div>
                     `;
@@ -2058,6 +2075,10 @@
                 `;
                 
                 container.innerHTML = cardsHtml + addExerciseBtn;
+                } catch (e) {
+                    console.error('[UI] Ошибка рендеринга экрана тренировки:', e);
+                    container.innerHTML = `<div class="error">Ошибка отрисовки: ${e.message}</div>`;
+                }
                 });
             },
 

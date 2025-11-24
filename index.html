@@ -620,6 +620,9 @@
                 }
 
                 this.loadGroups();
+                
+                // ПРИНУДИТЕЛЬНО очищаем заголовок при старте
+                UI.updateNav('', false);
             },
 
             goBack() {

@@ -515,14 +515,36 @@
                 Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
                 
                 try {
-                    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+                    const opts = { 
+                        method, 
+                        headers: { 'Content-Type': 'application/json' },
+                        // Таймаут 30 секунд (для "просыпающегося" Render сервера)
+                        signal: AbortSignal.timeout(30000)
+                    };
                     if (body) opts.body = JSON.stringify(body);
                     
+                    console.log(`[API] Запрос: ${method} ${url}`);
                     const res = await fetch(url, opts);
-                    return await res.json();
+                    
+                    if (!res.ok) {
+                        console.error(`[API] Ошибка HTTP: ${res.status} ${res.statusText}`);
+                        return { error: true, message: `HTTP ${res.status}` };
+                    }
+                    
+                    const data = await res.json();
+                    console.log(`[API] Ответ получен:`, data);
+                    return data;
                 } catch (e) {
-                    console.error("API Error:", e);
-                    return { error: true };
+                    if (e.name === 'TimeoutError') {
+                        console.error("[API] Таймаут запроса (30 сек). Сервер не отвечает.");
+                        return { error: true, message: 'Таймаут. Сервер не отвечает. Попробуйте еще раз.' };
+                    } else if (e.name === 'TypeError' && e.message.includes('Failed to fetch')) {
+                        console.error("[API] Не удалось подключиться к серверу:", CONFIG.BACKEND_URL);
+                        return { error: true, message: 'Не удалось подключиться к серверу. Проверьте адрес.' };
+                    } else {
+                        console.error("[API] Ошибка:", e);
+                        return { error: true, message: e.message || 'Неизвестная ошибка' };
+                    }
                 }
             },
 
@@ -683,12 +705,36 @@
             },
 
             async loadGroups() {
+                const listEl = document.getElementById('groups-list');
                 UI.renderLoading('groups-list');
-                const res = await API.getGroups();
-                if (res.groups) {
-                    UI.renderGroups(res.groups);
-                } else {
-                    document.getElementById('groups-list').innerHTML = '<div class="error">Ошибка загрузки</div>';
+                
+                try {
+                    console.log('[App] Загрузка групп мышц...');
+                    const res = await API.getGroups();
+                    
+                    if (res.error) {
+                        console.error('[App] Ошибка загрузки групп:', res.message);
+                        listEl.innerHTML = `<div class="error">
+                            <div>❌ Ошибка загрузки</div>
+                            <div style="font-size: 12px; margin-top: 8px; color: #888;">${res.message || 'Проверьте подключение к интернету'}</div>
+                            <button onclick="App.loadGroups()" style="margin-top: 12px; padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer;">Повторить</button>
+                        </div>`;
+                        return;
+                    }
+                    
+                    if (res.groups && res.groups.length > 0) {
+                        console.log(`[App] Загружено групп: ${res.groups.length}`);
+                        UI.renderGroups(res.groups);
+                    } else {
+                        console.warn('[App] Группы не найдены');
+                        listEl.innerHTML = '<div class="error">Группы не найдены</div>';
+                    }
+                } catch (e) {
+                    console.error('[App] Критическая ошибка:', e);
+                    listEl.innerHTML = `<div class="error">
+                        <div>❌ Критическая ошибка</div>
+                        <div style="font-size: 12px; margin-top: 8px; color: #888;">${e.message}</div>
+                    </div>`;
                 }
             },
 
